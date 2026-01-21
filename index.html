@@ -286,6 +286,67 @@
       .app{grid-template-columns:1fr}
       .patientList{max-height:none}
     }
+  
+    /* --- Modal (offline restore) --- */
+    .modal{
+      position:fixed;
+      inset:0;
+      padding:16px;
+      background:rgba(0,0,0,.62);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:120;
+    }
+    .modalCard{
+      width:100%;
+      max-width:760px;
+      border-radius:22px;
+      border:1px solid var(--border);
+      background:rgba(16,26,53,.96);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding:14px 16px 12px 16px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .modalHead .h{
+      font-weight:900;
+      font-size:14px;
+      letter-spacing:.3px;
+    }
+    .modalBody{padding:14px 16px 16px 16px}
+    .xbtn{
+      cursor:pointer;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      border-radius:12px;
+      padding:8px 10px;
+      font-weight:900;
+      font-size:12px;
+    }
+    .xbtn:hover{background:rgba(255,255,255,.09); border-color:rgba(122,162,255,.35)}
+    .previewBox{
+      margin-top:10px;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(0,0,0,.14);
+      max-height:220px;
+      overflow:auto;
+      white-space:pre-wrap;
+      font-family:var(--mono);
+      font-size:12px;
+      color:var(--text);
+    }
+
   </style>
 </head>
 <body>
@@ -306,7 +367,8 @@
         <div class="row">
           <button id="btnAddPatient" class="btn primary small">+ Add</button>
           <button id="btnExportAll" class="btn small">Export All</button>
-          <button id="btnImportAll" class="btn small">Import</button>
+          <button id="btnBackupPack" class="btn small">Backup</button>
+          <button id="btnImportAll" class="btn small">Restore</button>
         </div>
         <input id="importAllFile" class="hidden" type="file" accept="application/json" />
         <input id="patientSearch" class="input" placeholder="Search patients (ID or name)..." style="margin-top:10px;" />
@@ -585,6 +647,60 @@
     </div>
   </div>
 
+
+  <div class="modal hidden" id="restoreModal" aria-hidden="true">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="h">Restore / Import (OFFLINE)</div>
+        <button id="btnRestoreClose" class="xbtn" title="Close">✕</button>
+      </div>
+      <div class="modalBody">
+        <div class="mini muted">
+          Restore data from a JSON file (Export All or Backup Pack). No network is used. This writes to <span class="mono">localStorage</span>.
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="grid2">
+          <div>
+            <div class="label">Restore mode</div>
+            <select id="restoreMode" class="input">
+              <option value="dryrun">DRY-RUN (preview only)</option>
+              <option value="merge">MERGE (safe)</option>
+              <option value="replace">REPLACE (overwrite)</option>
+            </select>
+            <div class="mini muted" id="restoreModeHelp" style="margin-top:6px;"></div>
+          </div>
+
+          <div>
+            <div class="label">Select file</div>
+            <div class="row" style="gap:8px; flex-wrap:wrap;">
+              <button id="btnRestorePick" class="btn small">Choose JSON…</button>
+              <button id="btnRestoreClear" class="btn small ghost">Clear</button>
+            </div>
+            <div class="mini muted" id="restoreFileLabel" style="margin-top:6px;">No file selected.</div>
+            <input id="restoreFile" class="hidden" type="file" accept="application/json" />
+          </div>
+        </div>
+
+        <div class="label" style="margin-top:12px;">Preview</div>
+        <div id="restorePreview" class="previewBox">(Load a file to preview changes.)</div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+          <button id="btnRestoreCancel" class="btn small">Cancel</button>
+          <button id="btnRestoreApply" class="btn primary small" disabled>Apply</button>
+        </div>
+
+        <div class="mini muted" style="margin-top:10px;">
+          Tip: Use <b>Backup</b> weekly. Use <b>MERGE</b> to combine two datasets safely. Use <b>REPLACE</b> only if you intend to overwrite all local data.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <div class="toast" id="toast">
     <div class="t" id="toastTitle">Saved</div>
     <div class="m" id="toastMsg">OK</div>
@@ -602,22 +718,450 @@
   function loadAll(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return { patients: [], selectedId: null };
+      if(!raw) return { patients: [], selectedId: null, next_patient_seq: 1 };
       const obj = JSON.parse(raw);
-      if(!obj || !Array.isArray(obj.patients)) return { patients: [], selectedId: null };
-      return { patients: obj.patients, selectedId: obj.selectedId ?? null };
+      if(!obj || !Array.isArray(obj.patients)) return { patients: [], selectedId: null, next_patient_seq: 1 };
+      const patients = obj.patients;
+      const selectedId = obj.selectedId ?? null;
+      let next = 1;
+      if(Number.isFinite(obj.next_patient_seq)) next = obj.next_patient_seq;
+      else next = computeNextPatientSeq(patients);
+      if(!Number.isFinite(next) || next < 1) next = 1;
+      return { patients, selectedId, next_patient_seq: next };
     }catch(e){
-      return { patients: [], selectedId: null };
+      return { patients: [], selectedId: null, next_patient_seq: 1 };
     }
   }
-  function saveAll(state){
+function saveAll(state){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
   function uuidShort(){
     return Math.random().toString(16).slice(2,10).toUpperCase();
   }
 
-  function toast(title, msg){
+  
+function fnv1a32(str){
+    // 32-bit FNV-1a hash (stable across sessions) for deterministic IDs and previews
+    let h = 0x811c9dc5;
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return ('0000000' + (h >>> 0).toString(16)).slice(-8).toUpperCase();
+  }
+
+  function randomHex(nBytes){
+    try{
+      const buf = new Uint8Array(nBytes);
+      crypto.getRandomValues(buf);
+      return Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    }catch(e){
+      // fallback (less strong, but OK offline)
+      let s = '';
+      for(let i=0;i<nBytes;i++) s += Math.floor(Math.random()*256).toString(16).padStart(2,'0');
+      return s.toUpperCase();
+    }
+  }
+
+  function randomEntryId(){
+    // Persisted, unique per saved session (export/import safe)
+    return `ER${randomHex(8)}`;
+  }
+
+  function stableEntryId(patientId, entry){
+    // Deterministic fallback ID for older sessions that lack entry_id
+    const core = [
+      String(patientId||''),
+      String(entry?.week_end||''),
+      String(entry?.week_start||''),
+      String(entry?.created_at||''),
+      JSON.stringify(entry?.metrics||{}),
+      JSON.stringify((entry?.cards||[]).map(c=>({
+        id:c?.id, status:c?.status, category:c?.category, title:c?.title, goal:c?.goal, next_step:c?.next_step
+      }))),
+      String(entry?.today_focus||''),
+      String(entry?.commitment||''),
+      String(entry?.mode||'')
+    ].join('|');
+    return `ES${fnv1a32(core)}`;
+  }
+
+  function migrateInPlace(state){
+    // Keep LOCK continuity: never break older storage; only enrich missing fields.
+    let changed = false;
+    if(!state || !Array.isArray(state.patients)) return false;
+
+    // next_patient_seq
+    if(!Number.isFinite(state.next_patient_seq)){
+      state.next_patient_seq = computeNextPatientSeq(state.patients);
+      changed = true;
+    }
+
+    // ensure entries + entry_id
+    (state.patients || []).forEach(p=>{
+      if(!p) return;
+      if(!Array.isArray(p.entries)){ p.entries = []; changed = true; }
+      (p.entries || []).forEach(e=>{
+        if(e && !e.entry_id){
+          e.entry_id = stableEntryId(p.id, e);
+          changed = true;
+        }
+      });
+    });
+
+    // selectedId sanity
+    if(state.selectedId && !(state.patients || []).some(p=>p && p.id === state.selectedId)){
+      state.selectedId = null;
+      changed = true;
+    }
+    return changed;
+  }
+
+  function deepClone(obj){
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function countSessions(state){
+    let n = 0;
+    (state?.patients || []).forEach(p=>{ n += (p?.entries || []).length; });
+    return n;
+  }
+
+  function buildBackupPackFromState(state){
+    const s = state || {patients:[], selectedId:null, next_patient_seq:1};
+    return {
+      app: 'SYNTELIA_Psych_Weekly',
+      schema_version: 5,
+      exported_at: nowISO(),
+      counts: { patients: (s.patients||[]).length, sessions: countSessions(s) },
+      state: { patients: s.patients || [], selectedId: s.selectedId ?? null, next_patient_seq: s.next_patient_seq }
+    };
+  }
+
+  function normalizeImportObject(obj){
+    // Accept:
+    // 1) Backup Pack: {app, schema_version, exported_at, counts, state:{patients,...}}
+    // 2) Export All (legacy): {exported_at, patients:[...], selectedId, next_patient_seq}
+    if(obj && obj.state && Array.isArray(obj.state.patients)){
+      return { state: obj.state, meta: {kind:'backup', app:obj.app, schema_version:obj.schema_version, exported_at:obj.exported_at} };
+    }
+    if(obj && Array.isArray(obj.patients)){
+      return { state: {patients: obj.patients, selectedId: obj.selectedId ?? null, next_patient_seq: obj.next_patient_seq}, meta: {kind:'all', exported_at: obj.exported_at} };
+    }
+    throw new Error('Invalid format');
+  }
+
+  function validateStateShape(state){
+    if(!state || !Array.isArray(state.patients)) return false;
+    for(const p of state.patients){
+      if(!p || !p.id) return false;
+      if(p.entries && !Array.isArray(p.entries)) return false;
+    }
+    return true;
+  }
+
+  function simulateMerge(localState, importedState){
+    const local = deepClone(localState);
+    const imp = deepClone(importedState);
+
+    // migrate imported in memory (do not write yet)
+    migrateInPlace(imp);
+
+    const summary = {
+      local_patients: (local.patients||[]).length,
+      local_sessions: countSessions(local),
+      imported_patients: (imp.patients||[]).length,
+      imported_sessions: countSessions(imp),
+      patients_added: 0,
+      patients_merged: 0,
+      sessions_added: 0,
+      sessions_skipped: 0,
+      conflicts: 0
+    };
+
+    const byId = new Map((local.patients||[]).map(p=>[p.id, p]));
+    // track local week_end collisions per patient
+    const localWeekMap = new Map(); // pid -> Set(week_end)
+    (local.patients||[]).forEach(p=>{
+      const set = new Set();
+      (p.entries||[]).forEach(e=>{ if(e && e.week_end) set.add(String(e.week_end)); });
+      localWeekMap.set(p.id, set);
+    });
+
+    for(const ip of (imp.patients || [])){
+      if(!ip || !ip.id) continue;
+      if(!byId.has(ip.id)){
+        summary.patients_added += 1;
+        summary.sessions_added += (ip.entries||[]).length;
+        byId.set(ip.id, ip);
+        continue;
+      }
+      summary.patients_merged += 1;
+      const lp = byId.get(ip.id);
+      lp.entries = lp.entries || [];
+      const seen = new Set((lp.entries||[]).map(e=>e?.entry_id).filter(Boolean));
+      const weekSet = localWeekMap.get(ip.id) || new Set();
+
+      for(const ie of (ip.entries || [])){
+        if(!ie) continue;
+        if(!ie.entry_id) ie.entry_id = stableEntryId(ip.id, ie);
+        if(seen.has(ie.entry_id)){ summary.sessions_skipped += 1; continue; }
+        if(ie.week_end && weekSet.has(String(ie.week_end))) summary.conflicts += 1;
+        seen.add(ie.entry_id);
+        summary.sessions_added += 1;
+      }
+    }
+    return summary;
+  }
+
+  function mergeStates(localState, importedState){
+    const local = deepClone(localState);
+    const imp = deepClone(importedState);
+
+    migrateInPlace(local);
+    migrateInPlace(imp);
+
+    const summary = simulateMerge(local, imp);
+
+    const out = local;
+    const byId = new Map((out.patients||[]).map(p=>[p.id, p]));
+
+    for(const ip of (imp.patients || [])){
+      if(!ip || !ip.id) continue;
+      if(!byId.has(ip.id)){
+        out.patients.unshift(ip);
+        byId.set(ip.id, ip);
+        continue;
+      }
+      const lp = byId.get(ip.id);
+
+      // merge name (keep local if present)
+      if((!lp.name || !String(lp.name).trim()) && ip.name) lp.name = ip.name;
+
+      // merge registry (local wins)
+      lp.registry = lp.registry || {};
+      if(ip.registry && typeof ip.registry === 'object'){
+        for(const k of Object.keys(ip.registry)){
+          if(!(k in lp.registry)) lp.registry[k] = ip.registry[k];
+        }
+      }
+
+      // merge settings (local wins)
+      lp.settings = lp.settings || {};
+      if(ip.settings && typeof ip.settings === 'object'){
+        for(const k of Object.keys(ip.settings)){
+          if(!(k in lp.settings)) lp.settings[k] = ip.settings[k];
+        }
+      }
+
+      lp.entries = lp.entries || [];
+      const seen = new Set(lp.entries.map(e=>e?.entry_id).filter(Boolean));
+      const weekSet = new Set(lp.entries.map(e=>e?.week_end).filter(Boolean).map(String));
+
+      for(const ie0 of (ip.entries || [])){
+        if(!ie0) continue;
+        const ie = ie0;
+        if(!ie.entry_id) ie.entry_id = stableEntryId(ip.id, ie);
+        if(seen.has(ie.entry_id)) continue;
+        if(ie.week_end && weekSet.has(String(ie.week_end))){
+          ie.imported_conflict = true;
+        }
+        lp.entries.push(ie);
+        seen.add(ie.entry_id);
+      }
+
+      // sort entries by created_at (stable)
+      lp.entries.sort((a,b)=>{
+        const ta = Date.parse(a?.created_at || '') || 0;
+        const tb = Date.parse(b?.created_at || '') || 0;
+        return ta - tb;
+      });
+    }
+
+    // next_patient_seq: keep max across both + computed
+    const computed = computeNextPatientSeq(out.patients);
+    const a = Number.isFinite(localState?.next_patient_seq) ? localState.next_patient_seq : 1;
+    const b = Number.isFinite(importedState?.next_patient_seq) ? importedState.next_patient_seq : 1;
+    out.next_patient_seq = Math.max(a, b, computed);
+
+    // selectedId: keep local if valid, else imported, else first
+    if(out.selectedId && !(out.patients||[]).some(p=>p.id===out.selectedId)) out.selectedId = null;
+    if(!out.selectedId && importedState?.selectedId && (out.patients||[]).some(p=>p.id===importedState.selectedId)){
+      out.selectedId = importedState.selectedId;
+    }
+    if(!out.selectedId && (out.patients||[]).length>0) out.selectedId = out.patients[0].id;
+
+    return { merged: out, summary };
+  }
+
+  // Restore modal state
+  let _restoreLoaded = null; // { filename, rawObj, norm:{state,meta}, summary }
+  function setRestoreModeHelp(){
+    const mode = $('restoreMode')?.value || 'dryrun';
+    const help = $('restoreModeHelp');
+    if(!help) return;
+    if(mode === 'dryrun'){
+      help.textContent = 'Preview changes only. No data will be written.';
+    }else if(mode === 'merge'){
+      help.textContent = 'Merge imported patients/sessions into local storage (dedupe by session entry_id). Conflicts are kept and marked.';
+    }else{
+      help.textContent = 'Replace all local data with the imported file (overwrite).';
+    }
+  }
+  function openRestoreModal(){
+    setRestoreModeHelp();
+    $('restoreModal').classList.remove('hidden');
+    $('restoreModal').setAttribute('aria-hidden','false');
+  }
+  function closeRestoreModal(){
+    $('restoreModal').classList.add('hidden');
+    $('restoreModal').setAttribute('aria-hidden','true');
+  }
+  function clearRestoreLoaded(){
+    _restoreLoaded = null;
+    $('restoreFileLabel').textContent = 'No file selected.';
+    $('restorePreview').textContent = '(Load a file to preview changes.)';
+    $('btnRestoreApply').disabled = true;
+  }
+  function renderRestorePreview(){
+    setRestoreModeHelp();
+    const mode = $('restoreMode')?.value || 'dryrun';
+    if(!_restoreLoaded){
+      $('restorePreview').textContent = '(Load a file to preview changes.)';
+      $('btnRestoreApply').disabled = true;
+      return;
+    }
+    const norm = _restoreLoaded.norm;
+    const imported = deepClone(norm.state);
+    migrateInPlace(imported);
+
+    const local = deepClone(app);
+    migrateInPlace(local);
+
+    if(mode === 'replace'){
+      const txt = [
+        `MODE: REPLACE (overwrite)`,
+        `Local: patients=${(local.patients||[]).length} sessions=${countSessions(local)}`,
+        `Imported: patients=${(imported.patients||[]).length} sessions=${countSessions(imported)}`,
+        ``,
+        `This will OVERWRITE local data.`,
+      ].join('\n');
+      $('restorePreview').textContent = txt;
+      $('btnRestoreApply').disabled = false;
+      return;
+    }
+
+    const sim = simulateMerge(local, imported);
+    const lines = [
+      `MODE: ${mode.toUpperCase()}`,
+      `Local: patients=${sim.local_patients} sessions=${sim.local_sessions}`,
+      `Imported: patients=${sim.imported_patients} sessions=${sim.imported_sessions}`,
+      ``,
+      `Merge preview:`,
+      `  + patients added: ${sim.patients_added}`,
+      `  merged patients: ${sim.patients_merged}`,
+      `  + sessions added: ${sim.sessions_added}`,
+      `  skipped duplicates: ${sim.sessions_skipped}`,
+      `  week_end conflicts: ${sim.conflicts}`,
+    ];
+    if(mode === 'dryrun'){
+      lines.push('', 'Dry-run only: Apply is disabled.');
+      $('btnRestoreApply').disabled = true;
+    }else{
+      $('btnRestoreApply').disabled = false;
+    }
+    $('restorePreview').textContent = lines.join('\n');
+  }
+
+  async function loadRestoreFile(file){
+    const text = await file.text();
+    const obj = JSON.parse(text);
+    const norm = normalizeImportObject(obj);
+    if(!validateStateShape(norm.state)) throw new Error('Invalid state');
+    _restoreLoaded = { filename: file.name, rawObj: obj, norm };
+    $('restoreFileLabel').textContent = `Loaded: ${file.name}`;
+    renderRestorePreview();
+  }
+
+  function applyRestore(){
+    if(!_restoreLoaded) return;
+    const mode = $('restoreMode')?.value || 'dryrun';
+    const imported = deepClone(_restoreLoaded.norm.state);
+    migrateInPlace(imported);
+
+    if(mode === 'replace'){
+      app = {
+        patients: imported.patients || [],
+        selectedId: imported.selectedId ?? null,
+        next_patient_seq: Number.isFinite(imported.next_patient_seq) ? imported.next_patient_seq : computeNextPatientSeq(imported.patients||[])
+      };
+      if(migrateInPlace(app)){}
+      saveAll(app);
+      renderPatients();
+      if(app.selectedId) selectPatient(app.selectedId);
+      toast('Restore', 'REPLACE complete.');
+      return;
+    }
+    if(mode === 'merge'){
+      const { merged, summary } = mergeStates(app, imported);
+      app = merged;
+      if(migrateInPlace(app)){}
+      saveAll(app);
+      renderPatients();
+      if(app.selectedId) selectPatient(app.selectedId);
+      toast('Restore', `MERGE: +${summary.patients_added} patients, +${summary.sessions_added} sessions.`);
+      return;
+    }
+  }
+
+  // Close modal on background click (optional)
+  function bindModalBackgroundClose(){
+    const m = $('restoreModal');
+    if(!m) return;
+    m.addEventListener('click', (ev)=>{
+      if(ev.target === m) closeRestoreModal();
+    });
+  }
+
+  
+
+  // --- Patient ID: auto + unique (OFFLINE)
+  // Rule: Patient IDs are generated automatically to avoid duplicates and accidental reuse.
+  function computeNextPatientSeq(patients){
+    let max = 0;
+    (patients || []).forEach(p=>{
+      const id = String((p && p.id) || '');
+      const m = id.match(/^P(\d{1,8})/i);
+      if(m){
+        const n = parseInt(m[1], 10);
+        if(Number.isFinite(n)) max = Math.max(max, n);
+      }
+    });
+    return max + 1;
+  }
+  function makeUniquePatientId(state){
+    if(!state) state = {patients:[], next_patient_seq:1};
+    if(!Number.isFinite(state.next_patient_seq)){
+      state.next_patient_seq = computeNextPatientSeq(state.patients);
+    }
+    let seq = state.next_patient_seq;
+    for(let attempt=0; attempt<10000; attempt++){
+      const pid = `P${String(seq).padStart(3,'0')}_${uuidShort()}`;
+      if(!(state.patients || []).some(p=>p.id === pid)){
+        state.next_patient_seq = seq + 1;
+        return pid;
+      }
+      seq++;
+    }
+    // ultra-fallback (should never happen)
+    let pid = '';
+    do{
+      pid = `P${String(Date.now()).slice(-6)}_${uuidShort()}`;
+    }while((state.patients || []).some(p=>p.id === pid));
+    state.next_patient_seq = seq + 1;
+    return pid;
+  }
+function toast(title, msg){
     $('toastTitle').textContent = title;
     $('toastMsg').textContent = msg;
     const el = $('toast');
@@ -939,6 +1483,7 @@
   ];
 
   let app = loadAll();
+  if(migrateInPlace(app)) saveAll(app);
   let currentPatient = null;
   let currentDraft = null;
   let csvCache = null;
@@ -1058,11 +1603,10 @@
   }
 
   $('btnAddPatient').addEventListener('click', ()=>{
-    const id = prompt('Patient ID (e.g., P001) — leave empty for auto:') || '';
     const name = prompt('Patient name (optional):') || '';
-    const pid = (id.trim() ? id.trim() : `P${String(app.patients.length+1).padStart(3,'0')}_${Math.random().toString(16).slice(2,10).toUpperCase()}`);
+    const pid = makeUniquePatientId(app);
     if(app.patients.some(p=>p.id === pid)){
-      toast('Error', 'Patient ID already exists.');
+      toast('Error', 'Patient ID collision (unexpected). Try again.');
       return;
     }
     const p = {
@@ -1078,33 +1622,55 @@
     saveAll(app);
     renderPatients();
     selectPatient(pid);
-    toast('Patient', 'Created.');
+    toast('Patient', `Created: ${pid}`);
   });
 
   $('btnExportAll').addEventListener('click', ()=>{
-    const payload = { exported_at: nowISO(), patients: app.patients, selectedId: app.selectedId };
+    const payload = { exported_at: nowISO(), patients: app.patients, selectedId: app.selectedId, next_patient_seq: app.next_patient_seq };
     downloadText(`syntelia_psych_ALL_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), 'application/json');
     toast('Export', 'All patients JSON downloaded.');
   });
 
-  $('btnImportAll').addEventListener('click', ()=> $('importAllFile').click());
-  $('importAllFile').addEventListener('change', async (ev)=>{
+  $('btnBackupPack').addEventListener('click', ()=>{
+    const pack = buildBackupPackFromState(app);
+    downloadText(`syntelia_psych_BACKUP_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(pack, null, 2), 'application/json');
+    toast('Backup', 'Backup pack downloaded.');
+  });
+
+
+  
+  $('btnImportAll').addEventListener('click', ()=> openRestoreModal());
+
+  // Restore modal bindings (OFFLINE)
+  bindModalBackgroundClose();
+  $('btnRestoreClose').addEventListener('click', closeRestoreModal);
+  $('btnRestoreCancel').addEventListener('click', closeRestoreModal);
+  $('btnRestorePick').addEventListener('click', ()=> $('restoreFile').click());
+  $('btnRestoreClear').addEventListener('click', ()=>{
+    $('restoreFile').value = '';
+    clearRestoreLoaded();
+  });
+  $('restoreMode').addEventListener('change', ()=> renderRestorePreview());
+  $('restoreFile').addEventListener('change', async (ev)=>{
     const f = ev.target.files && ev.target.files[0];
     ev.target.value = '';
     if(!f) return;
     try{
-      const text = await f.text();
-      const obj = JSON.parse(text);
-      if(!obj || !Array.isArray(obj.patients)) throw new Error('Invalid format');
-      app = { patients: obj.patients, selectedId: obj.selectedId ?? null };
-      saveAll(app);
-      renderPatients();
-      if(app.selectedId) selectPatient(app.selectedId);
-      toast('Import', 'All patients imported.');
+      await loadRestoreFile(f);
     }catch(e){
-      toast('Import failed', 'Invalid JSON or format.');
+      clearRestoreLoaded();
+      toast('Restore failed', 'Invalid JSON or format.');
     }
   });
+  $('btnRestoreApply').addEventListener('click', ()=>{
+    try{
+      applyRestore();
+      closeRestoreModal();
+    }catch(e){
+      toast('Restore failed', 'Could not apply restore.');
+    }
+  });
+
 
   // Patient search (non-persistent)
   app.patientFilter = app.patientFilter || '';
@@ -2341,6 +2907,7 @@
 
     // Save session entry
     const entry = {
+      entry_id: randomEntryId(),
       created_at: nowISO(),
       mode: currentDraft.mode,
       week_start: currentDraft.week_start,
