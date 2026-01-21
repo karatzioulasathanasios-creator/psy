@@ -290,16 +290,6 @@
       </div>
 
       <div class="patientList" id="patientList"></div>
-
-      <div class="sideSection">
-        <h3>OPS (optional)</h3>
-        <div class="col">
-          <div class="label">OPS base URL</div>
-          <input id="opsBase" class="input mono" placeholder="http://127.0.0.1:8787" />
-          <div class="mini">Uses only: <span class="mono">POST /api/ops/certify_upload</span>. UI shows only verdict + audit link.</div>
-        </div>
-      </div>
-
       <div class="sideSection">
         <h3>Notes</h3>
         <div class="mini">
@@ -447,7 +437,9 @@
               <h3 style="margin:0 0 4px 0;">Problem Cards (1–3)</h3>
               <div class="mini">Keep intake short. You can expand “Details” later during the session.</div>
             </div>
-            <div class="row">
+            <div class="row" style="gap:8px; flex-wrap:wrap;">
+              <select id="selQuickTemplate" class="input" style="min-width:260px;" disabled></select>
+              <button id="btnAddTemplate" class="btn small" disabled>+ Template</button>
               <button id="btnAddCard" class="btn primary small" disabled>+ Add Card</button>
               <button id="btnClearCards" class="btn small" disabled>Clear</button>
             </div>
@@ -469,6 +461,23 @@
           </div>
 
           <div class="hr"></div>
+          <div class="card" style="background:rgba(0,0,0,.10); margin-top:12px;">
+            <div class="row" style="justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+              <div>
+                <h3 style="margin:0 0 4px 0;">Session Summary (auto, editable)</h3>
+                <div class="mini">Non-diagnostic summary for clinician notes. You can edit it. Use “Regenerate” if needed.</div>
+              </div>
+              <div class="row" style="gap:8px; flex-wrap:wrap;">
+                <button id="btnSummaryRegen" class="btn small">Regenerate</button>
+                <button id="btnSummaryCopy" class="btn small">Copy</button>
+              </div>
+            </div>
+            <div class="hr"></div>
+            <textarea id="summaryText" style="width:100%; min-height:170px;" placeholder="(Auto summary will appear here once a session is started.)"></textarea>
+          </div>
+
+          <div class="hr"></div>
+
 
           <div id="notesContainer" class="col" style="gap:10px;"></div>
         </div>
@@ -490,22 +499,14 @@
             </div>
 
             <div class="card" style="background:rgba(0,0,0,.10);">
-              <h3 style="margin:0 0 10px 0;">CSV + OPS gate (optional)</h3>
-              <div class="mini">Build a numeric CSV from sessions. Optionally run OPS. UI will show only verdict + audit link.</div>
+              <h3 style="margin:0 0 10px 0;">CSV export (optional)</h3>
+              <div class="mini">Build a numeric CSV (columns: t, x1, x2, …) from the session summary & sliders. This is for export/archiving only (offline).</div>
 
               <div class="row" style="margin-top:10px;">
                 <button id="btnBuildCSV" class="btn small">Build CSV</button>
                 <button id="btnDownloadCSV" class="btn small" disabled>Download CSV</button>
               </div>
-
-              <div class="hr"></div>
-              <div class="row">
-                <button id="btnRunOPS" class="btn primary small" disabled>RUN OPS</button>
-                <span id="opsBadge" class="badge hidden"></span>
-              </div>
-              <div id="opsResult" class="mini" style="margin-top:10px;"></div>
-
-              <div class="hr"></div>
+<div class="hr"></div>
               <div class="label">CSV preview</div>
               <textarea id="csvPreview" class="mono" style="min-height:160px" placeholder="(Build CSV to preview)"></textarea>
             </div>
@@ -526,7 +527,6 @@
   'use strict';
 
   const STORAGE_KEY = 'syntelia_psych_patients_v1';
-  const OPS_KEY = 'syntelia_psych_ops_base_v1';
   const nowISO = () => new Date().toISOString();
 
   const $ = (id) => document.getElementById(id);
@@ -656,6 +656,95 @@
     {k:'other', label:'other'}
   ];
 
+  const PROBLEM_TEMPLATES = [
+    { key:'', label:'Quick add template…' },
+    {
+      key:'weekly_anxiety',
+      label:'Weekly anxiety (worry/rumination)',
+      category:'other',
+      confidence:6,
+      title:'Weekly anxiety (worry) → rumination → fatigue',
+      goal:'Daily: 10′ worry time + 5′ “next action” (5 days/week)',
+      next_step:'Set a 10′ worry-time window today; write 1 next action after it.',
+      options:'1) Worry time (10′) + next action\n2) Postpone worry: “not now” cue\n3) 2-minute breathing reset\n4) Values-based action (5′)\n5) Reduce reassurance checking',
+      obstacles:'- Forgetting the window\n- “If I don’t worry, I’ll miss something”\n- Fatigue after work',
+      if_then:'- If worry spikes, then set a 2-minute timer + label thought\n- If I start checking, then postpone 15 minutes'
+    },
+    {
+      key:'sleep_maintenance',
+      label:'Sleep: waking at night (CBT-I light)',
+      category:'sleep',
+      confidence:5,
+      title:'Wake 03:00 → arousal → hard to return to sleep',
+      goal:'5/7 nights: 20′ wind-down + no phone in bed',
+      next_step:'Tonight 23:30 — 20′ low light + 2′ “tomorrow list” + bed (no phone).',
+      options:'1) Wind-down routine\n2) No phone in bed\n3) If awake >20′: quiet activity out of bed\n4) Worry list earlier\n5) Morning light + consistent wake time',
+      obstacles:'- Reaching for phone\n- “I must sleep now” pressure\n- Coffee late',
+      if_then:'- If awake >20′, then get up quietly for a low-stim activity\n- If urge to check phone, then put it outside room'
+    },
+    {
+      key:'avoidance_procrastination',
+      label:'Work avoidance / procrastination (exposure-lite)',
+      category:'work',
+      confidence:6,
+      title:'Avoid emails/tasks → deadlines → anxiety',
+      goal:'3× this week: 20′ timer → 3 small tasks',
+      next_step:'Tue 18:00 — timer 20′ — start with 1 easy email.',
+      options:'1) 20′ timer starter\n2) “Smallest next step”\n3) Reduce perfectionism (draft first)\n4) Reward after\n5) Schedule block with calendar',
+      obstacles:'- Fear it becomes “big”\n- Perfectionism\n- Low energy',
+      if_then:'- If fear spikes, then do 2′ “ugly first draft”\n- If tired, then do only 1 tiny step'
+    },
+    {
+      key:'panic_somatic',
+      label:'Panic-like symptoms (grounding)',
+      category:'health',
+      confidence:5,
+      title:'Body sensations → catastrophic thoughts → panic spike',
+      goal:'Use grounding plan 3× when symptoms rise',
+      next_step:'Write a 3-step grounding script; practice once today.',
+      options:'1) 5-4-3-2-1 grounding\n2) Slow exhale (longer out)\n3) Label thought as thought\n4) Reduce avoidance/reassurance\n5) Values-based micro-action',
+      obstacles:'- Fear of sensations\n- Safety behaviors\n- Avoiding places',
+      if_then:'- If I notice racing heart, then slow exhale for 60s\n- If catastrophic thought, then label it and refocus'
+    },
+    {
+      key:'low_mood_ba',
+      label:'Low mood (behavioral activation)',
+      category:'other',
+      confidence:5,
+      title:'Low mood → withdrawal → less activity',
+      goal:'Schedule 3 small activities (pleasure or mastery) this week',
+      next_step:'Pick 1 “2-minute” activity and schedule it today.',
+      options:'1) Activity scheduling\n2) Small mastery task\n3) Social micro-connection\n4) Reduce all-or-nothing\n5) Track mood after activity',
+      obstacles:'- “No energy”\n- Negative predictions\n- Isolation',
+      if_then:'- If I feel stuck, then do 2 minutes only\n- If I skip, then restart next slot'
+    },
+    {
+      key:'social_anxiety',
+      label:'Social anxiety (graded exposure)',
+      category:'social',
+      confidence:5,
+      title:'Social situations → fear of judgment → avoidance',
+      goal:'Do 2 graded social exposures this week',
+      next_step:'Choose exposure level 1–2 and schedule it.',
+      options:'1) Exposure ladder\n2) Drop safety behaviors\n3) Focus outward\n4) Limit post-event review\n5) Self-compassion cue',
+      obstacles:'- Avoidance\n- Over-preparing\n- Rumination afterwards',
+      if_then:'- If I want to avoid, then do the smallest exposure step\n- If rumination starts, then set a 10′ limit'
+    },
+    {
+      key:'relationship_conflict',
+      label:'Relationship conflict (communication)',
+      category:'relationships',
+      confidence:6,
+      title:'Conflict → escalation → withdrawal/anger',
+      goal:'1 structured conversation using “I-statements”',
+      next_step:'Draft 3 “I feel…when…because…I need…” lines.',
+      options:'1) I-statements\n2) Time-out rules\n3) Active listening\n4) Repair attempt\n5) One concrete request',
+      obstacles:'- Defensiveness\n- Timing\n- Old resentments',
+      if_then:'- If voices rise, then take 10′ break\n- If blame starts, then return to “I feel/need”'
+    }
+  ];
+
+
   const METRICS = [
     {k:'anxiety', label:'Anxiety'},
     {k:'stress', label:'Stress'},
@@ -736,6 +825,7 @@
     currentDraft = null;
     csvCache = null;
     renderPatients();
+  fillQuickTemplateSelect();
     renderMainHeader();
     renderPreSession();
     renderIntake();
@@ -1005,6 +1095,8 @@
       commitment: 6,
       today_focus: '',
       manual_note: '',
+      summary_text: '',
+      summary_user_edited: false,
       cards: [],
       followup: {}
     };
@@ -1084,6 +1176,8 @@
     $('commitment').disabled = !enabled;
     $('commitmentN').disabled = !enabled;
     $('btnAddCard').disabled = !enabled;
+    $('selQuickTemplate').disabled = !enabled;
+    $('btnAddTemplate').disabled = !enabled;
     $('btnClearCards').disabled = !enabled;
 
     if(!currentDraft){
@@ -1182,6 +1276,7 @@
     currentDraft.cards.push(makeCard({status:'NEW'}));
     renderCards();
     renderNotes();
+    syncSummaryUI();
   });
   $('btnClearCards').addEventListener('click', ()=>{
     if(!currentDraft) return;
@@ -1189,6 +1284,7 @@
     currentDraft.cards = [];
     renderCards();
     renderNotes();
+    syncSummaryUI();
   });
 
   function updateRegistryFromCard(card, close=false){
@@ -1514,6 +1610,7 @@
     }
     cards.forEach((c, idx)=> box.appendChild(renderNotesForCard(c, idx)));
     box.appendChild(renderUnifiedNotes(cards));
+    syncSummaryUI();
   }
 
   function renderNotesForCard(c, idx){
@@ -1599,10 +1696,7 @@
     $('btnExportPatient').disabled = !currentPatient;
     $('btnImportPatient').disabled = !currentPatient;
     $('btnBuildCSV').disabled = !currentPatient;
-    $('btnRunOPS').disabled = true;
     $('btnDownloadCSV').disabled = true;
-    $('opsBadge').classList.add('hidden');
-    $('opsResult').innerHTML = '';
     $('csvPreview').value = '';
     if(!currentPatient) return;
 
@@ -1681,7 +1775,6 @@
     csvCache = buildCSV(currentPatient);
     $('csvPreview').value = csvCache.csvText;
     $('btnDownloadCSV').disabled = false;
-    $('btnRunOPS').disabled = false;
     toast('CSV', 'Built.');
   });
   $('btnDownloadCSV').addEventListener('click', ()=>{
@@ -1690,46 +1783,6 @@
     toast('CSV', 'Downloaded.');
   });
 
-  $('btnRunOPS').addEventListener('click', async ()=>{
-    if(!csvCache){ toast('OPS', 'Build CSV first.'); return; }
-    const base = ($('opsBase').value || '').trim();
-    if(!base){ toast('OPS', 'Set OPS base URL first.'); return; }
-    const url = base.replace(/\/+$/,'') + '/api/ops/certify_upload';
-
-    $('opsBadge').classList.remove('hidden');
-    $('opsBadge').classList.remove('good','bad','warn');
-    $('opsBadge').textContent = 'RUNNING…';
-    $('opsResult').innerHTML = `<span class="mini muted">Uploading CSV to OPS…</span>`;
-
-    try{
-      const fd = new FormData();
-      const blob = new Blob([csvCache.csvText], {type:'text/csv'});
-      fd.append('file', blob, `patient_${currentPatient.id}_weekly_metrics.csv`);
-      const res = await fetch(url, { method:'POST', body: fd });
-      const text = await res.text();
-      let obj = null;
-      try{ obj = JSON.parse(text); }catch(e){}
-      if(!res.ok) throw new Error(obj?.detail || obj?.error || text || `HTTP ${res.status}`);
-
-      const verdict = (obj && (obj.verdict || obj.VERDICT || obj.result?.verdict)) || 'UNKNOWN';
-      const audit = (obj && (obj.audit_pack_url || obj.audit_pack || obj.audit || obj.result?.audit_pack_url)) || '';
-      const v = String(verdict).toUpperCase();
-      $('opsBadge').textContent = `VERDICT: ${v}`;
-      if(v.includes('PASS')) $('opsBadge').classList.add('good');
-      else if(v.includes('FAIL')) $('opsBadge').classList.add('bad');
-      else $('opsBadge').classList.add('warn');
-
-      $('opsResult').innerHTML = audit
-        ? `<div class="mini">Audit pack: <a href="${escapeAttr(audit)}" target="_blank" rel="noopener">open link</a></div>`
-        : `<div class="mini muted">No audit link returned.</div>`;
-      toast('OPS', `Done: ${v}`);
-    }catch(e){
-      $('opsBadge').textContent = 'OPS ERROR';
-      $('opsBadge').classList.add('bad');
-      $('opsResult').innerHTML = `<div class="mini" style="color:var(--bad);">${escapeHtml(String(e.message || e))}</div>`;
-      toast('OPS error', 'See details.');
-    }
-  });
 
   $('btnSaveSession').addEventListener('click', ()=>{
     if(!currentPatient){ toast('Error', 'Select patient.'); return; }
@@ -1767,8 +1820,13 @@
         title: c.title,
         goal: c.goal,
         next_step: c.next_step,
-        confidence: c.confidence
-      }))
+        confidence: c.confidence,
+        options: c.options,
+        obstacles: c.obstacles,
+        if_then: c.if_then,
+        result_last_week: c.result_last_week
+      })),
+      session_summary: (currentDraft.summary_user_edited && currentDraft.summary_text) ? currentDraft.summary_text : generateSessionSummary(currentDraft, currentPatient)
     };
 
     currentPatient.entries = currentPatient.entries || [];
@@ -1793,13 +1851,131 @@
     toast('Saved', 'Session saved to patient history.');
     setTab('pre');
   });
+  function fillQuickTemplateSelect(){
+    const sel = $('selQuickTemplate');
+    if(!sel) return;
+    sel.innerHTML = '';
+    PROBLEM_TEMPLATES.forEach(t=>{
+      sel.appendChild(new Option(t.label, t.key));
+    });
+  }
 
-  // OPS base URL persistence
-  const opsBaseSaved = localStorage.getItem(OPS_KEY) || '';
-  $('opsBase').value = opsBaseSaved;
-  $('opsBase').addEventListener('input', ()=>{
-    localStorage.setItem(OPS_KEY, $('opsBase').value || '');
+  function applyTemplateToCard(card, key){
+    const t = PROBLEM_TEMPLATES.find(x=>x.key === key);
+    if(!t || !key) return;
+    card.category = t.category || card.category;
+    card.title = t.title || card.title;
+    card.goal = t.goal || card.goal;
+    card.next_step = t.next_step || card.next_step;
+    if(Number.isFinite(Number(t.confidence))) card.confidence = Number(t.confidence);
+    card.options = t.options || card.options;
+    card.obstacles = t.obstacles || card.obstacles;
+    card.if_then = t.if_then || card.if_then;
+  }
+
+  function fmtDelta(curr, prev){
+    if(!Number.isFinite(curr) || !Number.isFinite(prev)) return '';
+    const d = curr - prev;
+    if(d === 0) return ' (Δ0)';
+    return d > 0 ? ` (Δ+${d})` : ` (Δ${d})`;
+  }
+
+  function generateSessionSummary(draft, patient){
+    if(!draft || !patient) return '';
+    const prev = lastEntry(patient);
+    const lines = [];
+    lines.push('SESSION SUMMARY (non-diagnostic)');
+    lines.push(`Patient: ${patient.name || '-'} (${patient.id || '-'})`);
+    lines.push(`Week: ${draft.week_start || '-'} → ${draft.week_end || '-'} | Mode: ${(draft.mode || '-').toUpperCase()}`);
+    if(draft.today_focus) lines.push(`Focus: ${draft.today_focus}`);
+    lines.push('');
+    lines.push('Quick metrics (0–10):');
+    METRICS.forEach(m=>{
+      const curr = Number(draft.metrics?.[m.k]);
+      const prevv = Number(prev?.metrics?.[m.k]);
+      const c = Number.isFinite(curr) ? curr : '-';
+      const d = Number.isFinite(prevv) ? fmtDelta(curr, prevv) : '';
+      lines.push(`- ${m.label}: ${c}${d}`);
+    });
+    lines.push(`Safety flag: ${(draft.safety_flag ? 'YES' : 'NO')}`);
+    lines.push(`Commitment: ${Number.isFinite(Number(draft.commitment)) ? Number(draft.commitment) : '-'}/10`);
+    lines.push('');
+    lines.push('Problems (this week):');
+    (draft.cards || []).forEach((c, i)=>{
+      lines.push(`${i+1}) ${c.id} [${c.status}] (${c.category}) — ${c.title || '-'}`);
+      if(c.goal) lines.push(`   Goal: ${c.goal}`);
+      if(c.result_last_week) lines.push(`   Result: ${c.result_last_week}`);
+      if(c.next_step) lines.push(`   Next step: ${c.next_step}`);
+      lines.push(`   Confidence: ${Number.isFinite(Number(c.confidence)) ? Number(c.confidence) : '-'}/10`);
+    });
+    lines.push('');
+    lines.push('Homework / actions:');
+    (draft.cards || []).forEach(c=>{
+      if(c.status === 'CLOSED') return;
+      if(c.next_step) lines.push(`- ${c.id}: ${c.next_step}`);
+    });
+    if(draft.manual_note){
+      lines.push('');
+      lines.push('Clinician note:');
+      lines.push(draft.manual_note);
+    }
+    return lines.join('\n');
+  }
+
+  function syncSummaryUI(){
+    const ta = $('summaryText');
+    if(!ta) return;
+    if(!currentDraft || !currentPatient){
+      ta.value = '';
+      ta.placeholder = '(Auto summary will appear here once a session is started.)';
+      return;
+    }
+    if(!currentDraft.summary_user_edited){
+      currentDraft.summary_text = generateSessionSummary(currentDraft, currentPatient);
+    }
+    ta.value = currentDraft.summary_text || '';
+  }
+
+  // Quick template add
+  $('btnAddTemplate').addEventListener('click', ()=>{
+    if(!currentDraft) return;
+    if(currentDraft.cards.length >= 3){ toast('Cards', 'Max 3 cards.'); return; }
+    const key = $('selQuickTemplate').value || '';
+    if(!key){ toast('Template', 'Pick a template first.'); return; }
+    const card = makeCard({status:'NEW'});
+    applyTemplateToCard(card, key);
+    currentDraft.cards.push(card);
+    renderCards();
+    renderNotes();
+    syncSummaryUI();
   });
+
+  // Summary interactions
+  $('btnSummaryRegen').addEventListener('click', ()=>{
+    if(!currentDraft || !currentPatient) return;
+    currentDraft.summary_user_edited = false;
+    currentDraft.summary_text = generateSessionSummary(currentDraft, currentPatient);
+    syncSummaryUI();
+    toast('Summary', 'Regenerated.');
+  });
+
+  $('btnSummaryCopy').addEventListener('click', async ()=>{
+    const ta = $('summaryText');
+    if(!ta) return;
+    try{
+      await navigator.clipboard.writeText(ta.value || '');
+      toast('Summary', 'Copied.');
+    }catch(e){
+      toast('Summary', 'Copy failed (browser).');
+    }
+  });
+
+  $('summaryText').addEventListener('input', ()=>{
+    if(!currentDraft) return;
+    currentDraft.summary_text = $('summaryText').value || '';
+    currentDraft.summary_user_edited = true;
+  });
+
 
   // Initial render
   renderPatients();
