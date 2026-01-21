@@ -1,0 +1,1810 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SYNTELIA • Psych Weekly (Problem-Solving)</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#101a35;
+      --panel2:#0f1730;
+      --card:#0f1a3a;
+      --muted:#9fb0d6;
+      --text:#e9eeff;
+      --accent:#7aa2ff;
+      --good:#48d17f;
+      --bad:#ff5c7a;
+      --warn:#ffd166;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      --radius2:22px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(900px 600px at 20% 10%, rgba(122,162,255,.20), transparent 55%),
+        radial-gradient(800px 500px at 90% 30%, rgba(72,209,127,.12), transparent 55%),
+        radial-gradient(900px 700px at 40% 90%, rgba(255,92,122,.10), transparent 60%),
+        var(--bg);
+      min-height:100vh;
+    }
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .app{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:16px;
+      padding:16px;
+      max-width:1400px;
+      margin:0 auto;
+    }
+    .sidebar, .main{
+      background:rgba(16,26,53,.72);
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+      border-radius:var(--radius2);
+      overflow:hidden;
+    }
+    .sidebar{display:flex; flex-direction:column}
+    .header{
+      padding:16px 16px 12px 16px;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .brand .title{
+      font-weight:800;
+      letter-spacing:.6px;
+      font-size:15px;
+      line-height:1.2;
+    }
+    .brand .subtitle{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:3px;
+    }
+    .pill{
+      font-family:var(--mono);
+      font-size:11px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.20);
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .sideSection{
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+    }
+    .sideSection h3{
+      margin:0 0 8px 0;
+      font-size:12px;
+      letter-spacing:.5px;
+      color:var(--muted);
+      text-transform:uppercase;
+    }
+    .row{display:flex; gap:10px; align-items:center}
+    .col{display:flex; flex-direction:column; gap:6px}
+    .grow{flex:1}
+    .btn{
+      cursor:pointer;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:700;
+      font-size:13px;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{background:rgba(255,255,255,.09); border-color:rgba(122,162,255,.35)}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:rgba(122,162,255,.16); border-color:rgba(122,162,255,.45)}
+    .btn.danger{background:rgba(255,92,122,.14); border-color:rgba(255,92,122,.40)}
+    .btn.good{background:rgba(72,209,127,.14); border-color:rgba(72,209,127,.38)}
+    .btn.small{padding:8px 10px; font-size:12px; border-radius:10px}
+    .btn.ghost{background:transparent}
+    .input, select, textarea{
+      width:100%;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.18);
+      color:var(--text);
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+    textarea{min-height:86px; resize:vertical}
+    .input:focus, select:focus, textarea:focus{
+      border-color:rgba(122,162,255,.55);
+      box-shadow:0 0 0 3px rgba(122,162,255,.12);
+    }
+    .patientList{
+      padding:10px 10px 12px 10px;
+      overflow:auto;
+      max-height: calc(100vh - 340px);
+    }
+    .patientItem{
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(0,0,0,.16);
+      margin:8px 0;
+      cursor:pointer;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .patientItem:hover{background:rgba(255,255,255,.06)}
+    .patientItem.active{
+      border-color:rgba(122,162,255,.55);
+      background:rgba(122,162,255,.12);
+    }
+    .patientItem .name{font-weight:800; font-size:13px}
+    .patientItem .meta{color:var(--muted); font-size:12px; margin-top:2px; display:flex; gap:10px; flex-wrap:wrap}
+    .mainHeader{
+      padding:16px;
+      border-bottom:1px solid var(--border);
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .mainHeader .left{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .mainHeader .left .h1{
+      font-size:16px;
+      font-weight:900;
+      letter-spacing:.3px;
+    }
+    .mainHeader .left .h2{
+      color:var(--muted);
+      font-size:12px;
+    }
+    .tabs{
+      display:flex; gap:8px; flex-wrap:wrap;
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      background:rgba(0,0,0,.10);
+    }
+    .tab{
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.16);
+      color:var(--muted);
+      cursor:pointer;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.3px;
+      user-select:none;
+    }
+    .tab.active{
+      color:var(--text);
+      border-color:rgba(122,162,255,.55);
+      background:rgba(122,162,255,.14);
+    }
+    .content{
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+    .card{
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      background:rgba(0,0,0,.14);
+      padding:14px;
+    }
+    .card h3{margin:0 0 10px 0; font-size:13px; letter-spacing:.2px}
+    .muted{color:var(--muted)}
+    .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .label{font-size:12px; color:var(--muted); margin:0 0 6px 0}
+    .mini{font-size:11px; color:var(--muted)}
+    .hr{height:1px; background:var(--border); margin:10px 0}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.15);
+      color:var(--muted);
+      font-family:var(--mono);
+    }
+    .badge.good{color:rgba(72,209,127,1); border-color:rgba(72,209,127,.35); background:rgba(72,209,127,.10)}
+    .badge.bad{color:rgba(255,92,122,1); border-color:rgba(255,92,122,.35); background:rgba(255,92,122,.10)}
+    .badge.warn{color:rgba(255,209,102,1); border-color:rgba(255,209,102,.35); background:rgba(255,209,102,.10)}
+    .kpiRow{display:flex; gap:10px; flex-wrap:wrap}
+    .kpi{
+      flex:1;
+      min-width:180px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(0,0,0,.12);
+      padding:10px 12px;
+    }
+    .kpi .k{font-size:11px; color:var(--muted); letter-spacing:.3px; text-transform:uppercase}
+    .kpi .v{font-size:16px; font-weight:900; margin-top:4px; display:flex; align-items:baseline; gap:8px}
+    .kpi .v .sub{font-size:11px; color:var(--muted); font-weight:700}
+    .sliderWrap{display:flex; gap:10px; align-items:center}
+    input[type="range"]{width:100%}
+    .rightActions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .toast{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      max-width:420px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:rgba(10,16,34,.92);
+      color:var(--text);
+      box-shadow:var(--shadow);
+      display:none;
+      z-index:99;
+    }
+    .toast.show{display:block}
+    .toast .t{font-weight:900; font-size:13px}
+    .toast .m{color:var(--muted); font-size:12px; margin-top:4px}
+    .mono{font-family:var(--mono)}
+    .hidden{display:none !important}
+    @media(max-width:1020px){
+      .app{grid-template-columns:1fr}
+      .patientList{max-height:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar">
+      <div class="header">
+        <div class="brand">
+          <div>
+            <div class="title">SYNTELIA • Psych Weekly</div>
+            <div class="subtitle">Interview Mode • Problem-Solving • 1–3 Cards</div>
+          </div>
+          <div class="pill">standalone HTML</div>
+        </div>
+      </div>
+
+      <div class="sideSection">
+        <h3>Patients</h3>
+        <div class="row">
+          <button id="btnAddPatient" class="btn primary small">+ Add</button>
+          <button id="btnExportAll" class="btn small">Export All</button>
+          <button id="btnImportAll" class="btn small">Import</button>
+        </div>
+        <input id="importAllFile" class="hidden" type="file" accept="application/json" />
+      </div>
+
+      <div class="patientList" id="patientList"></div>
+
+      <div class="sideSection">
+        <h3>OPS (optional)</h3>
+        <div class="col">
+          <div class="label">OPS base URL</div>
+          <input id="opsBase" class="input mono" placeholder="http://127.0.0.1:8787" />
+          <div class="mini">Uses only: <span class="mono">POST /api/ops/certify_upload</span>. UI shows only verdict + audit link.</div>
+        </div>
+      </div>
+
+      <div class="sideSection">
+        <h3>Notes</h3>
+        <div class="mini">
+          This tool is <b>non-diagnostic</b> and provides <b>guidelines-based educational notes</b> for clinicians.
+          Use clinical judgment and shared decision-making. If safety concerns arise, follow your local protocols.
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="mainHeader">
+        <div class="left">
+          <div class="h1" id="mainTitle">No patient selected</div>
+          <div class="h2" id="mainSub">Create/select a patient to start.</div>
+        </div>
+        <div class="rightActions">
+          <span id="modeBadge" class="badge hidden">MODE</span>
+          <button id="btnStartGuided" class="btn primary small" disabled>Start (Guided)</button>
+          <button id="btnStartManual" class="btn small" disabled>Start (Manual / Fresh)</button>
+          <button id="btnSaveSession" class="btn good small" disabled>Save Session</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="pre">Pre-Session</div>
+        <div class="tab" data-tab="intake">Intake (10′)</div>
+        <div class="tab" data-tab="cards">Problem Cards</div>
+        <div class="tab" data-tab="notes">Evidence Notes</div>
+        <div class="tab" data-tab="export">Export / OPS</div>
+      </div>
+
+      <div class="content">
+
+        <div class="card" id="tab-pre">
+          <h3>Pre-Session Briefing</h3>
+          <div id="preEmpty" class="muted">Select a patient. If there is a previous session, you will see a summary + suggested follow-up questions.</div>
+
+          <div id="preBody" class="hidden">
+            <div class="kpiRow" id="preKpis"></div>
+
+            <div class="hr"></div>
+
+            <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+              <div class="grow">
+                <div class="label">Suggested follow-up questions (based on last session)</div>
+                <div class="mini">You can follow them or ignore them. You can hide/show this panel anytime.</div>
+              </div>
+              <div class="row">
+                <button id="btnHideGuided" class="btn small">Hide Guided Plan</button>
+                <button id="btnShowGuided" class="btn small hidden">Show Guided Plan</button>
+              </div>
+            </div>
+
+            <div id="guidedPanel" class="card" style="margin-top:10px; background:rgba(0,0,0,.10);">
+              <div id="followupList"></div>
+              <div class="hr"></div>
+              <div class="grid2">
+                <div>
+                  <div class="label">Quick triage</div>
+                  <select id="triagePrimaryFromOpen"></select>
+                  <div class="mini">Pick which open problem is likely Primary today (optional).</div>
+                </div>
+                <div>
+                  <div class="label">Carry over open cards</div>
+                  <div class="mini">When you start Guided, open cards from last session are preloaded as CONTINUE (you can change).</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+            <div class="row">
+              <span class="badge" id="preStatus">Guided Plan: Available</span>
+              <span class="mini">Tip: do follow-up (1–3′) → sliders (2′) → cards (up to 6′), then free talk.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card hidden" id="tab-intake">
+          <h3>Intake (first ~10′)</h3>
+          <div class="grid2">
+            <div>
+              <div class="label">Week start</div>
+              <input id="weekStart" class="input" type="date" />
+            </div>
+            <div>
+              <div class="label">Week end</div>
+              <input id="weekEnd" class="input" type="date" />
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="grid2">
+            <div class="card" style="background:rgba(0,0,0,.10);">
+              <h3 style="margin:0 0 10px 0;">Sliders (0–10) — numeric lock</h3>
+              <div id="metricsGrid"></div>
+              <div class="hr"></div>
+              <div class="grid2">
+                <div>
+                  <div class="label">Safety flag</div>
+                  <select id="safetyFlag">
+                    <option value="NO">NO</option>
+                    <option value="YES">YES</option>
+                  </select>
+                </div>
+                <div>
+                  <div class="label">Commitment / confidence in plan (0–10)</div>
+                  <div class="sliderWrap">
+                    <input id="commitment" type="range" min="0" max="10" step="1" value="6" />
+                    <input id="commitmentN" class="input mono" style="width:84px" value="6" />
+                  </div>
+                </div>
+              </div>
+              <div id="safetyNote" class="mini hidden" style="margin-top:10px; color:var(--warn);">
+                Safety flag is YES. Keep documentation minimal. Follow your local safety protocols and appropriate escalation pathways.
+              </div>
+            </div>
+
+            <div class="card" style="background:rgba(0,0,0,.10);">
+              <h3 style="margin:0 0 10px 0;">Manual note (optional)</h3>
+              <div class="mini">Keep it short. Numeric data should come from sliders. This text is for context & plan.</div>
+              <textarea id="manualNote" placeholder="(Optional) 5–10 lines: context, what changed, what matters today."></textarea>
+
+              <div class="hr"></div>
+
+              <div class="label">Session mode</div>
+              <div class="row">
+                <button id="btnSwitchGuided" class="btn small primary">Guided</button>
+                <button id="btnSwitchManual" class="btn small">Manual / Fresh</button>
+                <span class="mini" id="modeHint"></span>
+              </div>
+
+              <div class="hr"></div>
+
+              <div class="label">Primary focus for today (1 sentence)</div>
+              <input id="todayFocus" class="input" placeholder="e.g., Avoidance at work → deadlines → anxiety" />
+              <div class="mini">This is not a diagnosis. It helps triage your session.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card hidden" id="tab-cards">
+          <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div>
+              <h3 style="margin:0 0 4px 0;">Problem Cards (1–3)</h3>
+              <div class="mini">Keep intake short. You can expand “Details” later during the session.</div>
+            </div>
+            <div class="row">
+              <button id="btnAddCard" class="btn primary small" disabled>+ Add Card</button>
+              <button id="btnClearCards" class="btn small" disabled>Clear</button>
+            </div>
+          </div>
+
+          <div id="cardsContainer" style="margin-top:10px;"></div>
+
+          <div class="hr"></div>
+          <div class="mini">
+            Rules (recommended): max 3 cards, max 1 NEW per week, Card #1 = Primary, prefer measurable goals & day/time next_step.
+          </div>
+        </div>
+
+        <div class="card hidden" id="tab-notes">
+          <h3>Evidence Notes (guidelines-based, non-diagnostic)</h3>
+          <div class="mini">
+            These are educational modules for clinicians based on common evidence-based approaches (e.g., CBT/behavioral, exposure principles, problem-solving, CBT-I for sleep).
+            Use clinical judgment and patient preferences.
+          </div>
+
+          <div class="hr"></div>
+
+          <div id="notesContainer" class="col" style="gap:10px;"></div>
+        </div>
+
+        <div class="card hidden" id="tab-export">
+          <h3>Export / OPS</h3>
+          <div class="grid2">
+            <div class="card" style="background:rgba(0,0,0,.10);">
+              <h3 style="margin:0 0 10px 0;">Patient file</h3>
+              <div class="mini">Export/import JSON for this patient. Data is stored locally in your browser (localStorage).</div>
+              <div class="row" style="margin-top:10px;">
+                <button id="btnExportPatient" class="btn small">Export Patient JSON</button>
+                <button id="btnImportPatient" class="btn small">Import Patient JSON</button>
+                <input id="importPatientFile" class="hidden" type="file" accept="application/json" />
+              </div>
+              <div class="hr"></div>
+              <div class="label">Session history</div>
+              <div id="historyList" class="mini muted">No sessions yet.</div>
+            </div>
+
+            <div class="card" style="background:rgba(0,0,0,.10);">
+              <h3 style="margin:0 0 10px 0;">CSV + OPS gate (optional)</h3>
+              <div class="mini">Build a numeric CSV from sessions. Optionally run OPS. UI will show only verdict + audit link.</div>
+
+              <div class="row" style="margin-top:10px;">
+                <button id="btnBuildCSV" class="btn small">Build CSV</button>
+                <button id="btnDownloadCSV" class="btn small" disabled>Download CSV</button>
+              </div>
+
+              <div class="hr"></div>
+              <div class="row">
+                <button id="btnRunOPS" class="btn primary small" disabled>RUN OPS</button>
+                <span id="opsBadge" class="badge hidden"></span>
+              </div>
+              <div id="opsResult" class="mini" style="margin-top:10px;"></div>
+
+              <div class="hr"></div>
+              <div class="label">CSV preview</div>
+              <textarea id="csvPreview" class="mono" style="min-height:160px" placeholder="(Build CSV to preview)"></textarea>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="t" id="toastTitle">Saved</div>
+    <div class="m" id="toastMsg">OK</div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'syntelia_psych_patients_v1';
+  const OPS_KEY = 'syntelia_psych_ops_base_v1';
+  const nowISO = () => new Date().toISOString();
+
+  const $ = (id) => document.getElementById(id);
+
+  function loadAll(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return { patients: [], selectedId: null };
+      const obj = JSON.parse(raw);
+      if(!obj || !Array.isArray(obj.patients)) return { patients: [], selectedId: null };
+      return { patients: obj.patients, selectedId: obj.selectedId ?? null };
+    }catch(e){
+      return { patients: [], selectedId: null };
+    }
+  }
+  function saveAll(state){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function uuidShort(){
+    return Math.random().toString(16).slice(2,10).toUpperCase();
+  }
+
+  function toast(title, msg){
+    $('toastTitle').textContent = title;
+    $('toastMsg').textContent = msg;
+    const el = $('toast');
+    el.classList.add('show');
+    setTimeout(()=> el.classList.remove('show'), 2200);
+  }
+  function downloadText(filename, content, mime='text/plain'){
+    const blob = new Blob([content], {type:mime});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+
+  // Evidence notes library (educational, non-diagnostic)
+  const EVIDENCE_LIBRARY = {
+    general: {
+      title: 'Common thread (Unified plan)',
+      modules: [
+        {name:'Modular, stepped approach', note:'Start with a small, feasible plan; escalate intensity only if needed. Track adherence and barriers.'},
+        {name:'Problem-Solving (weekly)', note:'Define a specific problem → brainstorm options → choose 1 plan + backup → obstacles → if-then coping.'},
+        {name:'Behavioral activation / routine', note:'Small scheduled actions reduce avoidance and improve functioning; measure activity and follow-through.'},
+        {name:'Sleep support (if sleep is a driver)', note:'If sleep is consistently low, consider a CBT-I style module with clinician judgment.'},
+      ]
+    },
+    anxiety: {
+      title: 'Anxiety / Worry / Avoidance',
+      modules: [
+        {name:'CBT skills', note:'Identify triggers and patterns; use behavioral experiments and cognitive restructuring as appropriate.'},
+        {name:'Graded exposure principles', note:'Break feared situations into steps; practice with measurable goals and review outcomes next week.'},
+        {name:'Applied relaxation / breathing', note:'Use brief skills to manage physiological arousal, especially as a bridge into behavior change.'},
+        {name:'Worry management', note:'Time-boxed worry + action vs. rumination; record “worry → step” each week.'},
+      ]
+    },
+    mood: {
+      title: 'Low mood / Reduced functioning',
+      modules: [
+        {name:'Behavioral activation', note:'Schedule small meaningful activities; measure activity and mood weekly; reduce avoidance loops.'},
+        {name:'CBT framework', note:'Link situation → thoughts → feelings → behavior; pick one leverage point per week.'},
+        {name:'Interpersonal focus (if relationships)', note:'If the core problem is relational/role-based, structure goals around communication and boundaries.'},
+        {name:'Mindfulness-based skills (optional)', note:'Use as a skills add-on for rumination and reactivity, aligned with patient preference.'},
+      ]
+    },
+    sleep: {
+      title: 'Sleep disruption',
+      modules: [
+        {name:'CBT-I style module', note:'If persistent, consider structured sleep schedule + stimulus control with clinician judgment.'},
+        {name:'Sleep hygiene (supportive)', note:'As supportive steps: consistent wake time, reduce late caffeine/screen, wind-down routine.'},
+      ]
+    },
+    work: {
+      title: 'Work / Performance / Procrastination',
+      modules: [
+        {name:'Behavioral micro-tasks', note:'Use timers and “smallest next step”; measure completion and avoidance weekly.'},
+        {name:'Exposure to feared tasks', note:'Approach avoided tasks in graded steps (e.g., “send 1 email” then scale).'},
+      ]
+    },
+    social: {
+      title: 'Social / Communication / Isolation',
+      modules: [
+        {name:'Graded social exposure', note:'Plan small, time-bounded contacts; review prediction vs. outcome next session.'},
+        {name:'Communication skills', note:'Use simple scripts (I-statements, assertive requests); pick one practice per week.'},
+      ]
+    },
+    relationships: {
+      title: 'Relationships / Conflict',
+      modules: [
+        {name:'Problem-solving + boundaries', note:'Define one conflict pattern; choose one boundary/communication change; review next week.'},
+        {name:'Interpersonal focus', note:'If the core driver is relational, structure sessions around roles, expectations, repair, and support.'},
+      ]
+    },
+    finances: {
+      title: 'Finances / Stressors',
+      modules: [
+        {name:'Structured problem-solving', note:'Break down into actionable steps; use weekly targets and barrier planning.'},
+        {name:'Stress management', note:'Use brief regulation skills so practical steps are feasible.'},
+      ]
+    },
+    health: {
+      title: 'Health-related stress',
+      modules: [
+        {name:'Worry vs action split', note:'Separate controllable actions (appointments, plans) from rumination; log weekly.'},
+        {name:'Behavioral pacing', note:'If fatigue/pain, use pacing and graded activity targets with clinician judgment.'},
+      ]
+    },
+    other: {
+      title: 'Other / Mixed',
+      modules: [
+        {name:'Problem-solving core', note:'Stay specific: one problem → options → plan → barriers → if-then.'},
+        {name:'Track adherence + barriers', note:'Adherence often explains outcomes; track it explicitly each week.'},
+      ]
+    }
+  };
+
+  const CATEGORY_KEYS = [
+    {k:'work', label:'work'},
+    {k:'social', label:'social'},
+    {k:'health', label:'health'},
+    {k:'sleep', label:'sleep'},
+    {k:'relationships', label:'relationships'},
+    {k:'finances', label:'finances'},
+    {k:'other', label:'other'}
+  ];
+
+  const METRICS = [
+    {k:'anxiety', label:'Anxiety'},
+    {k:'stress', label:'Stress'},
+    {k:'avoidance', label:'Avoidance'},
+    {k:'rumination', label:'Rumination'},
+    {k:'sleep_quality', label:'Sleep quality'},
+    {k:'activity', label:'Activity'},
+    {k:'social', label:'Social'},
+    {k:'mood', label:'Mood'},
+  ];
+
+  let app = loadAll();
+  let currentPatient = null;
+  let currentDraft = null;
+  let csvCache = null;
+
+  function setTab(name){
+    document.querySelectorAll('.tab').forEach(t=>{
+      t.classList.toggle('active', t.dataset.tab === name);
+    });
+    const map = { pre:'tab-pre', intake:'tab-intake', cards:'tab-cards', notes:'tab-notes', export:'tab-export' };
+    Object.entries(map).forEach(([k, id])=>{
+      $(id).classList.toggle('hidden', k !== name);
+    });
+  }
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=> setTab(t.dataset.tab));
+  });
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, (c)=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function escapeAttr(s){ return String(s ?? '').replace(/"/g, '&quot;'); }
+  function clampInt(n, a, b){
+    const x = parseInt(n, 10);
+    if(!Number.isFinite(x)) return a;
+    return Math.max(a, Math.min(b, x));
+  }
+
+  function renderPatients(){
+    const list = $('patientList');
+    list.innerHTML = '';
+    if(app.patients.length === 0){
+      list.innerHTML = `<div class="mini muted">No patients yet. Click <b>Add</b>.</div>`;
+      return;
+    }
+    app.patients.forEach(p=>{
+      const div = document.createElement('div');
+      div.className = 'patientItem' + (app.selectedId === p.id ? ' active' : '');
+      const n = (p.name && p.name.trim()) ? p.name.trim() : '(no name)';
+      const sessions = (p.entries || []).length;
+      const openCount = countOpenProblems(p);
+      div.innerHTML = `
+        <div class="name">${escapeHtml(n)} <span class="pill" style="float:right">${escapeHtml(p.id)}</span></div>
+        <div class="meta">
+          <span>${sessions} sessions</span>
+          <span>${openCount} open</span>
+        </div>
+      `;
+      div.addEventListener('click', ()=>{
+        app.selectedId = p.id;
+        saveAll(app);
+        selectPatient(p.id);
+      });
+      list.appendChild(div);
+    });
+  }
+
+  function countOpenProblems(p){
+    const reg = p.registry || {};
+    return Object.values(reg).filter(x=>x && x.status === 'OPEN').length;
+  }
+
+  function selectPatient(id){
+    currentPatient = app.patients.find(p=>p.id === id) || null;
+    currentDraft = null;
+    csvCache = null;
+    renderPatients();
+    renderMainHeader();
+    renderPreSession();
+    renderIntake();
+    renderCards();
+    renderNotes();
+    renderExport();
+
+    const enabled = !!currentPatient;
+    $('btnStartGuided').disabled = !enabled;
+    $('btnStartManual').disabled = !enabled;
+    $('btnSaveSession').disabled = !enabled;
+  }
+
+  function renderMainHeader(){
+    if(!currentPatient){
+      $('mainTitle').textContent = 'No patient selected';
+      $('mainSub').textContent = 'Create/select a patient to start.';
+      $('modeBadge').classList.add('hidden');
+      return;
+    }
+    const n = (currentPatient.name && currentPatient.name.trim()) ? currentPatient.name.trim() : '(no name)';
+    const sessions = (currentPatient.entries || []).length;
+    $('mainTitle').textContent = `${n} — ${currentPatient.id}`;
+    $('mainSub').textContent = `Sessions: ${sessions} • Open problems: ${countOpenProblems(currentPatient)}`;
+    renderModeBadge();
+  }
+
+  function renderModeBadge(){
+    const badge = $('modeBadge');
+    if(!currentDraft){ badge.classList.add('hidden'); return; }
+    badge.classList.remove('hidden');
+    const mode = currentDraft.mode || 'guided';
+    badge.textContent = `MODE: ${mode.toUpperCase()}`;
+    badge.classList.toggle('good', mode === 'guided');
+    badge.classList.toggle('warn', mode === 'manual');
+  }
+
+  $('btnAddPatient').addEventListener('click', ()=>{
+    const id = prompt('Patient ID (e.g., P001) — leave empty for auto:') || '';
+    const name = prompt('Patient name (optional):') || '';
+    const pid = (id.trim() ? id.trim() : `P${String(app.patients.length+1).padStart(3,'0')}_${Math.random().toString(16).slice(2,10).toUpperCase()}`);
+    if(app.patients.some(p=>p.id === pid)){
+      toast('Error', 'Patient ID already exists.');
+      return;
+    }
+    const p = {
+      id: pid,
+      name: name.trim(),
+      created_at: nowISO(),
+      settings: { cadence:'weekly', max_cards:3 },
+      entries: [],
+      registry: {}
+    };
+    app.patients.unshift(p);
+    app.selectedId = pid;
+    saveAll(app);
+    renderPatients();
+    selectPatient(pid);
+    toast('Patient', 'Created.');
+  });
+
+  $('btnExportAll').addEventListener('click', ()=>{
+    const payload = { exported_at: nowISO(), patients: app.patients, selectedId: app.selectedId };
+    downloadText(`syntelia_psych_ALL_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    toast('Export', 'All patients JSON downloaded.');
+  });
+
+  $('btnImportAll').addEventListener('click', ()=> $('importAllFile').click());
+  $('importAllFile').addEventListener('change', async (ev)=>{
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if(!f) return;
+    try{
+      const text = await f.text();
+      const obj = JSON.parse(text);
+      if(!obj || !Array.isArray(obj.patients)) throw new Error('Invalid format');
+      app = { patients: obj.patients, selectedId: obj.selectedId ?? null };
+      saveAll(app);
+      renderPatients();
+      if(app.selectedId) selectPatient(app.selectedId);
+      toast('Import', 'All patients imported.');
+    }catch(e){
+      toast('Import failed', 'Invalid JSON or format.');
+    }
+  });
+
+  function lastEntry(p){
+    const arr = (p.entries || []);
+    if(arr.length === 0) return null;
+    return arr[arr.length - 1];
+  }
+
+  function listOpenProblems(p){
+    const reg = p.registry || {};
+    const arr = Object.entries(reg)
+      .filter(([,v])=>v && v.status === 'OPEN')
+      .map(([id, v])=>({id, title:v.title, category:v.category, last_seen:v.last_seen}));
+    arr.sort((a,b)=>(b.last_seen||'').localeCompare(a.last_seen||''));
+    return arr;
+  }
+
+  function listClosedProblems(p){
+    const reg = p.registry || {};
+    const arr = Object.entries(reg)
+      .filter(([,v])=>v && v.status === 'CLOSED')
+      .map(([id, v])=>({id, title:v.title, category:v.category, last_seen:v.last_seen}));
+    arr.sort((a,b)=>(b.last_seen||'').localeCompare(a.last_seen||''));
+    return arr;
+  }
+
+  function computeSuggestedQuestions(p){
+    const le = lastEntry(p);
+    if(!le) return [];
+    const qs = [];
+    const cards = (le.cards || []).filter(c=>c && (c.status !== 'CLOSED'));
+    const maxCards = Math.min(3, cards.length);
+    for(let i=0;i<maxCards;i++){
+      const c = cards[i];
+      qs.push({type:'card', text:`(Card ${c.id}) Last step: "${c.next_step || '—'}" — done? (Yes/No)`});
+      qs.push({type:'card', text:`(Card ${c.id}) Goal "${c.goal || '—'}" — Met / Partly / Not?`});
+      qs.push({type:'card', text:`(Card ${c.id}) Main barrier? (time/fear/fatigue/conflict/forgot/other)`});
+    }
+    if(le.safety_flag === 'YES'){
+      qs.unshift({type:'safety', text:'Safety follow-up: Any immediate risk concerns today? (Yes/No). Follow local protocols.'});
+    }
+    return qs.slice(0,10);
+  }
+
+  function kpi(k, v, sub){
+    const div = document.createElement('div');
+    div.className = 'kpi';
+    div.innerHTML = `<div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(String(v))} <span class="sub">${escapeHtml(sub||'')}</span></div>`;
+    return div;
+  }
+  function fmt01(x){
+    const n = Number(x);
+    return Number.isFinite(n) ? String(n) : '—';
+  }
+
+  function renderPreSession(){
+    if(!currentPatient){
+      $('preEmpty').classList.remove('hidden');
+      $('preBody').classList.add('hidden');
+      return;
+    }
+    const le = lastEntry(currentPatient);
+    if(!le){
+      $('preEmpty').classList.remove('hidden');
+      $('preEmpty').innerHTML = `
+        <div class="muted">No previous sessions for this patient.</div>
+        <div class="mini" style="margin-top:8px;">Start with <b>Manual</b> or <b>Guided</b> (Guided will be minimal on first session).</div>
+      `;
+      $('preBody').classList.add('hidden');
+      $('preStatus').textContent = 'Guided Plan: None (first session)';
+      return;
+    }
+    $('preEmpty').classList.add('hidden');
+    $('preBody').classList.remove('hidden');
+
+    const kpis = $('preKpis');
+    kpis.innerHTML = '';
+    const wk = `${le.week_start || '—'} → ${le.week_end || '—'}`;
+    kpis.appendChild(kpi('Last week', wk, 'dates'));
+    kpis.appendChild(kpi('Last mode', (le.mode || '—').toUpperCase(), ''));
+    kpis.appendChild(kpi('Safety', le.safety_flag || 'NO', ''));
+    const m = le.metrics || {};
+    kpis.appendChild(kpi('Anxiety', fmt01(m.anxiety), '/10'));
+    kpis.appendChild(kpi('Sleep', fmt01(m.sleep_quality), '/10'));
+    kpis.appendChild(kpi('Avoidance', fmt01(m.avoidance), '/10'));
+
+    const qs = computeSuggestedQuestions(currentPatient);
+    const box = $('followupList');
+    box.innerHTML = '';
+    if(qs.length === 0){
+      box.innerHTML = `<div class="mini muted">No suggestions.</div>`;
+    } else {
+      const ul = document.createElement('div');
+      ul.className = 'col';
+      ul.style.gap = '8px';
+      qs.forEach((q, idx)=>{
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.style.alignItems = 'flex-start';
+        row.innerHTML = `
+          <div class="badge">${String(idx+1).padStart(2,'0')}</div>
+          <div class="grow">
+            <div style="font-weight:800; font-size:13px;">${escapeHtml(q.text)}</div>
+            <div class="mini muted">Quick log (optional): <span class="mono">followup_q${idx+1}</span></div>
+          </div>
+        `;
+        ul.appendChild(row);
+      });
+      box.appendChild(ul);
+    }
+
+    const tri = $('triagePrimaryFromOpen');
+    tri.innerHTML = '';
+    const open = listOpenProblems(currentPatient);
+    tri.appendChild(new Option('(optional) pick primary from OPEN', ''));
+    open.forEach(o=>{
+      tri.appendChild(new Option(`${o.id} — ${o.title || '—'}`, o.id));
+    });
+
+    $('preStatus').textContent = 'Guided Plan: Available (last session found)';
+  }
+
+  $('btnHideGuided').addEventListener('click', ()=>{
+    $('guidedPanel').classList.add('hidden');
+    $('btnHideGuided').classList.add('hidden');
+    $('btnShowGuided').classList.remove('hidden');
+    toast('Guided plan', 'Hidden (you can show it anytime).');
+  });
+  $('btnShowGuided').addEventListener('click', ()=>{
+    $('guidedPanel').classList.remove('hidden');
+    $('btnHideGuided').classList.remove('hidden');
+    $('btnShowGuided').classList.add('hidden');
+  });
+
+  function defaultMetricsFromLast(le){
+    const obj = {};
+    for(const m of METRICS){
+      const v = le?.metrics?.[m.k];
+      const n = Number(v);
+      obj[m.k] = Number.isFinite(n) ? n : 5;
+    }
+    return obj;
+  }
+
+  function nextProblemId(p){
+    const reg = p?.registry || {};
+    const ids = Object.keys(reg).filter(k=>/^P\d{2}$/.test(k)).map(k=>parseInt(k.slice(1),10)).filter(n=>Number.isFinite(n));
+    const max = ids.length ? Math.max(...ids) : 0;
+    const next = max + 1;
+    return `P${String(next).padStart(2,'0')}`;
+  }
+
+  function makeCard(seed={}){
+    return {
+      id: seed.id || nextProblemId(currentPatient),
+      status: seed.status || 'NEW',
+      category: seed.category || 'other',
+      title: seed.title || '',
+      goal: seed.goal || '',
+      next_step: seed.next_step || '',
+      confidence: Number.isFinite(Number(seed.confidence)) ? Number(seed.confidence) : 6,
+      details_open: false,
+      show_closed_ids: false,
+      options: seed.options || '',
+      obstacles: seed.obstacles || '',
+      if_then: seed.if_then || '',
+      result_last_week: seed.result_last_week || ''
+    };
+  }
+
+  function newDraft(mode){
+    const today = new Date();
+    const iso = today.toISOString().slice(0,10);
+    const le = currentPatient ? lastEntry(currentPatient) : null;
+
+    const draft = {
+      created_at: nowISO(),
+      mode: mode,
+      week_start: iso,
+      week_end: iso,
+      metrics: defaultMetricsFromLast(le),
+      safety_flag: 'NO',
+      commitment: 6,
+      today_focus: '',
+      manual_note: '',
+      cards: [],
+      followup: {}
+    };
+
+    if(mode === 'guided' && le){
+      const prevCards = (le.cards || []).filter(c=>c && c.status !== 'CLOSED');
+      const carried = [];
+      for(const c of prevCards.slice(0,3)){
+        const reg = currentPatient.registry?.[c.id];
+        carried.push(makeCard({
+          id: c.id,
+          status: 'CONTINUE',
+          category: reg?.category || c.category || 'other',
+          title: reg?.title || c.title || '',
+          goal: c.goal || '',
+          next_step: c.next_step || '',
+          confidence: Math.max(0, Math.min(10, Number(c.confidence ?? 6) || 6))
+        }));
+      }
+      draft.cards = carried;
+    }
+
+    return draft;
+  }
+
+  $('btnStartGuided').addEventListener('click', ()=>{
+    if(!currentPatient) return;
+    currentDraft = newDraft('guided');
+    setTab('intake');
+    renderModeBadge();
+    renderIntake();
+    renderCards();
+    renderNotes();
+    renderExport();
+    toast('Session', 'Started (Guided).');
+  });
+
+  $('btnStartManual').addEventListener('click', ()=>{
+    if(!currentPatient) return;
+    currentDraft = newDraft('manual');
+    currentDraft.cards = [];
+    setTab('intake');
+    renderModeBadge();
+    renderIntake();
+    renderCards();
+    renderNotes();
+    renderExport();
+    toast('Session', 'Started (Manual / Fresh).');
+  });
+
+  $('btnSwitchGuided').addEventListener('click', ()=>{
+    if(!currentDraft) return;
+    currentDraft.mode = 'guided';
+    renderModeBadge();
+    $('btnSwitchGuided').classList.add('primary');
+    $('btnSwitchManual').classList.remove('primary');
+    $('modeHint').textContent = 'Guided mode: follow-up available.';
+    toast('Mode', 'Guided enabled.');
+  });
+  $('btnSwitchManual').addEventListener('click', ()=>{
+    if(!currentDraft) return;
+    currentDraft.mode = 'manual';
+    renderModeBadge();
+    $('btnSwitchManual').classList.add('primary');
+    $('btnSwitchGuided').classList.remove('primary');
+    $('modeHint').textContent = 'Manual mode: prompts ignored.';
+    toast('Mode', 'Manual enabled.');
+  });
+
+  function renderIntake(){
+    const enabled = !!currentDraft;
+    $('weekStart').disabled = !enabled;
+    $('weekEnd').disabled = !enabled;
+    $('manualNote').disabled = !enabled;
+    $('todayFocus').disabled = !enabled;
+    $('safetyFlag').disabled = !enabled;
+    $('commitment').disabled = !enabled;
+    $('commitmentN').disabled = !enabled;
+    $('btnAddCard').disabled = !enabled;
+    $('btnClearCards').disabled = !enabled;
+
+    if(!currentDraft){
+      $('metricsGrid').innerHTML = `<div class="mini muted">Start a session (Guided or Manual).</div>`;
+      $('weekStart').value = '';
+      $('weekEnd').value = '';
+      $('manualNote').value = '';
+      $('todayFocus').value = '';
+      $('modeHint').textContent = '';
+      return;
+    }
+
+    $('weekStart').value = currentDraft.week_start || '';
+    $('weekEnd').value = currentDraft.week_end || '';
+    $('manualNote').value = currentDraft.manual_note || '';
+    $('todayFocus').value = currentDraft.today_focus || '';
+
+    if(currentDraft.mode === 'guided'){
+      $('btnSwitchGuided').classList.add('primary');
+      $('btnSwitchManual').classList.remove('primary');
+      $('modeHint').textContent = 'Guided mode: follow-up available.';
+    } else {
+      $('btnSwitchManual').classList.add('primary');
+      $('btnSwitchGuided').classList.remove('primary');
+      $('modeHint').textContent = 'Manual mode: prompts ignored.';
+    }
+
+    $('safetyFlag').value = currentDraft.safety_flag || 'NO';
+    $('safetyNote').classList.toggle('hidden', $('safetyFlag').value !== 'YES');
+
+    const c = clampInt(currentDraft.commitment ?? 6, 0, 10);
+    $('commitment').value = String(c);
+    $('commitmentN').value = String(c);
+
+    const grid = $('metricsGrid');
+    grid.innerHTML = '';
+    METRICS.forEach(m=>{
+      const wrap = document.createElement('div');
+      wrap.style.marginBottom = '10px';
+      wrap.innerHTML = `
+        <div class="label">${escapeHtml(m.label)} <span class="mono muted">(${m.k})</span></div>
+        <div class="sliderWrap">
+          <input type="range" id="rng_${m.k}" min="0" max="10" step="1" value="5" />
+          <input class="input mono" id="num_${m.k}" style="width:84px" value="5" />
+        </div>
+      `;
+      grid.appendChild(wrap);
+
+      const v = clampInt(currentDraft.metrics[m.k] ?? 5, 0, 10);
+      $(`rng_${m.k}`).value = String(v);
+      $(`num_${m.k}`).value = String(v);
+
+      $(`rng_${m.k}`).addEventListener('input', ()=>{
+        $(`num_${m.k}`).value = $(`rng_${m.k}`).value;
+        currentDraft.metrics[m.k] = Number($(`rng_${m.k}`).value);
+      });
+      $(`num_${m.k}`).addEventListener('input', ()=>{
+        const n = parseInt($(`num_${m.k}`).value, 10);
+        if(Number.isFinite(n)){
+          const nn = clampInt(n, 0, 10);
+          $(`rng_${m.k}`).value = String(nn);
+          $(`num_${m.k}`).value = String(nn);
+          currentDraft.metrics[m.k] = nn;
+        }
+      });
+    });
+
+    $('weekStart').onchange = ()=> currentDraft.week_start = $('weekStart').value;
+    $('weekEnd').onchange = ()=> currentDraft.week_end = $('weekEnd').value;
+    $('manualNote').oninput = ()=> currentDraft.manual_note = $('manualNote').value;
+    $('todayFocus').oninput = ()=> currentDraft.today_focus = $('todayFocus').value;
+
+    $('safetyFlag').onchange = ()=>{
+      currentDraft.safety_flag = $('safetyFlag').value;
+      $('safetyNote').classList.toggle('hidden', $('safetyFlag').value !== 'YES');
+    };
+
+    $('commitment').oninput = ()=>{
+      $('commitmentN').value = $('commitment').value;
+      currentDraft.commitment = Number($('commitment').value);
+    };
+    $('commitmentN').oninput = ()=>{
+      const n = parseInt($('commitmentN').value, 10);
+      if(Number.isFinite(n)){
+        const nn = clampInt(n, 0, 10);
+        $('commitment').value = String(nn);
+        $('commitmentN').value = String(nn);
+        currentDraft.commitment = nn;
+      }
+    };
+  }
+
+  $('btnAddCard').addEventListener('click', ()=>{
+    if(!currentDraft) return;
+    if(currentDraft.cards.length >= 3){ toast('Cards', 'Max 3 cards.'); return; }
+    currentDraft.cards.push(makeCard({status:'NEW'}));
+    renderCards();
+    renderNotes();
+  });
+  $('btnClearCards').addEventListener('click', ()=>{
+    if(!currentDraft) return;
+    if(!confirm('Clear all cards in current session draft?')) return;
+    currentDraft.cards = [];
+    renderCards();
+    renderNotes();
+  });
+
+  function updateRegistryFromCard(card, close=false){
+    const reg = currentPatient.registry || (currentPatient.registry = {});
+    const existing = reg[card.id] || {};
+    const title = (card.title || existing.title || '').trim();
+    const category = card.category || existing.category || 'other';
+    const status = close ? 'CLOSED' : 'OPEN';
+    reg[card.id] = {
+      title,
+      category,
+      status,
+      created_at: existing.created_at || nowISO(),
+      last_seen: (currentDraft?.week_end) || nowISO().slice(0,10),
+      reopen_reason_last: existing.reopen_reason_last || ''
+    };
+  }
+  function updateRegistryReopen(card, reason){
+    const reg = currentPatient.registry || (currentPatient.registry = {});
+    const existing = reg[card.id] || {};
+    reg[card.id] = {
+      title: (card.title || existing.title || '').trim(),
+      category: card.category || existing.category || 'other',
+      status: 'OPEN',
+      created_at: existing.created_at || nowISO(),
+      last_seen: (currentDraft?.week_end) || nowISO().slice(0,10),
+      reopen_reason_last: reason || existing.reopen_reason_last || ''
+    };
+  }
+
+  function renderCards(){
+    const container = $('cardsContainer');
+    container.innerHTML = '';
+    if(!currentDraft){
+      container.innerHTML = `<div class="mini muted">Start a session to add cards.</div>`;
+      $('btnAddCard').disabled = true;
+      $('btnClearCards').disabled = true;
+      return;
+    }
+    $('btnAddCard').disabled = false;
+    $('btnClearCards').disabled = false;
+
+    if(currentDraft.cards.length === 0){
+      container.innerHTML = `<div class="mini muted">No cards yet. Click <b>Add Card</b> (max 3).</div>`;
+      return;
+    }
+
+    currentDraft.cards.forEach((c, idx)=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.background = 'rgba(0,0,0,.10)';
+      const primaryTag = idx===0 ? `<span class="badge good">PRIMARY</span>` : `<span class="badge">CARD ${idx+1}</span>`;
+      card.innerHTML = `
+        <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div class="row" style="gap:10px; align-items:center;">
+            ${primaryTag}
+            <span class="badge mono">${escapeHtml(c.id)}</span>
+            <span class="badge">${escapeHtml(c.status)}</span>
+            <span class="badge">${escapeHtml(c.category)}</span>
+          </div>
+          <div class="row">
+            <button class="btn small" data-act="toggle">${c.details_open ? 'Hide Details' : 'Details'}</button>
+            <button class="btn small danger" data-act="remove">Remove</button>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="grid2">
+          <div>
+            <div class="label">Problem ID</div>
+            <div class="row">
+              <select class="input mono" data-f="id"></select>
+              <button class="btn small" data-act="newid">New ID</button>
+            </div>
+            <div class="row" style="margin-top:8px; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label class="mini" style="display:flex; gap:8px; align-items:center; cursor:pointer;">
+                <input type="checkbox" data-f="show_closed" />
+                Show CLOSED IDs (for Reopen)
+              </label>
+              <span class="badge warn hidden" data-f="closedHint">CLOSED selected → use Reopen</span>
+            </div>
+            <div class="mini">Default shows OPEN IDs only. Enable CLOSED to reopen a previously closed problem.</div>
+          </div>
+
+          <div>
+            <div class="label">Status</div>
+            <select class="input" data-f="status">
+              <option value="NEW">NEW</option>
+              <option value="CONTINUE">CONTINUE</option>
+              <option value="CLOSED">CLOSED</option>
+            </select>
+            <div class="mini">You can close and reopen later (via registry).</div>
+          </div>
+
+          <div>
+            <div class="label">Category</div>
+            <select class="input" data-f="category"></select>
+          </div>
+
+          <div>
+            <div class="label">Confidence (0–10)</div>
+            <div class="sliderWrap">
+              <input type="range" min="0" max="10" step="1" data-f="confidence_rng" value="6" />
+              <input class="input mono" style="width:84px" data-f="confidence_num" value="6" />
+            </div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="grid2">
+          <div>
+            <div class="label">Title (1 line)</div>
+            <input class="input" data-f="title" placeholder="e.g., Avoid emails → deadlines → anxiety" />
+          </div>
+          <div>
+            <div class="label">Goal (measurable)</div>
+            <input class="input" data-f="goal" placeholder="e.g., 3 emails in 20′ on 3 days" />
+          </div>
+          <div>
+            <div class="label">Next step (day/time)</div>
+            <input class="input" data-f="next_step" placeholder="e.g., Tue 18:00 timer 20′, reply 1 easy email" />
+          </div>
+          <div>
+            <div class="label">Registry action</div>
+            <div class="row">
+              <button class="btn small" data-act="close">Close</button>
+              <button class="btn small" data-act="reopen">Reopen</button>
+            </div>
+            <div class="mini">Close/Reopen updates registry; you can still override status here.</div>
+          </div>
+        </div>
+
+        <div class="card ${c.details_open ? '' : 'hidden'}" data-section="details" style="margin-top:12px; background:rgba(0,0,0,.10);">
+          <h3 style="margin:0 0 10px 0;">Details (optional)</h3>
+          <div class="grid2">
+            <div>
+              <div class="label">Options (min 5)</div>
+              <textarea data-f="options" placeholder="1) ...&#10;2) ...&#10;3) ...&#10;4) ...&#10;5) ..."></textarea>
+            </div>
+            <div>
+              <div class="label">Obstacles</div>
+              <textarea data-f="obstacles" placeholder="- obstacle1: ...&#10;- obstacle2: ..."></textarea>
+            </div>
+            <div>
+              <div class="label">If–then coping</div>
+              <textarea data-f="if_then" placeholder="- if ... then ...&#10;- if ... then ..."></textarea>
+            </div>
+            <div>
+              <div class="label">Result from last week (if any)</div>
+              <textarea data-f="result_last_week" placeholder="what worked / what failed"></textarea>
+            </div>
+          </div>
+        </div>
+      `;
+      const idSel = card.querySelector('select[data-f="id"]');
+      const chkShowClosed = card.querySelector('input[data-f="show_closed"]');
+      const closedHint = card.querySelector('[data-f="closedHint"]');
+
+      // Persist per-card UI choice
+      chkShowClosed.checked = !!c.show_closed_ids;
+
+      function rebuildIdOptions(){
+        idSel.innerHTML = '';
+        const open = listOpenProblems(currentPatient);
+        const closed = chkShowClosed.checked ? listClosedProblems(currentPatient) : [];
+        const seen = new Set();
+
+        const addOpt = (id, label) => {
+          idSel.appendChild(new Option(label, id));
+          seen.add(id);
+        };
+
+        // Always include current id (even if CLOSED), so you never "lose" it.
+        addOpt(c.id, c.id);
+
+        open.forEach(o=>{
+          if(!seen.has(o.id)){
+            addOpt(o.id, `${o.id} — ${o.title || '—'}`);
+          }
+        });
+
+        closed.forEach(o=>{
+          if(!seen.has(o.id)){
+            addOpt(o.id, `${o.id} — (CLOSED) ${o.title || '—'}`);
+          }
+        });
+
+        idSel.value = c.id;
+
+        const reg = currentPatient.registry?.[c.id];
+        const isClosed = !!reg && reg.status === 'CLOSED';
+        closedHint.classList.toggle('hidden', !isClosed);
+      }
+
+      rebuildIdOptions();
+
+      chkShowClosed.addEventListener('change', ()=>{
+        c.show_closed_ids = chkShowClosed.checked;
+        rebuildIdOptions();
+      });
+      const catSel = card.querySelector('select[data-f="category"]');
+      catSel.innerHTML = '';
+      CATEGORY_KEYS.forEach(x=> catSel.appendChild(new Option(x.label, x.k)));
+      catSel.value = c.category;
+
+      const stSel = card.querySelector('select[data-f="status"]');
+      stSel.value = c.status;
+
+      const rng = card.querySelector('input[data-f="confidence_rng"]');
+      const num = card.querySelector('input[data-f="confidence_num"]');
+      const cv = clampInt(c.confidence ?? 6, 0, 10);
+      rng.value = String(cv);
+      num.value = String(cv);
+
+      card.querySelector('input[data-f="title"]').value = c.title || '';
+      card.querySelector('input[data-f="goal"]').value = c.goal || '';
+      card.querySelector('input[data-f="next_step"]').value = c.next_step || '';
+
+      card.querySelector('textarea[data-f="options"]').value = c.options || '';
+      card.querySelector('textarea[data-f="obstacles"]').value = c.obstacles || '';
+      card.querySelector('textarea[data-f="if_then"]').value = c.if_then || '';
+      card.querySelector('textarea[data-f="result_last_week"]').value = c.result_last_week || '';
+
+      idSel.addEventListener('change', ()=>{
+        c.id = idSel.value;
+
+        const reg = currentPatient.registry?.[c.id];
+        const isClosed = !!reg && reg.status === 'CLOSED';
+        closedHint.classList.toggle('hidden', !isClosed);
+
+        // If selecting an OPEN id, default NEW -> CONTINUE
+        if(reg && reg.status === 'OPEN'){
+          if(c.status === 'NEW') c.status = 'CONTINUE';
+          stSel.value = c.status;
+        }
+
+        renderCards();
+        renderNotes();
+      });
+
+      stSel.addEventListener('change', ()=>{ c.status = stSel.value; renderNotes(); });
+      catSel.addEventListener('change', ()=>{ c.category = catSel.value; renderNotes(); });
+
+      rng.addEventListener('input', ()=>{ num.value = rng.value; c.confidence = Number(rng.value); });
+      num.addEventListener('input', ()=>{
+        const n = parseInt(num.value, 10);
+        if(Number.isFinite(n)){
+          const nn = clampInt(n, 0, 10);
+          rng.value = String(nn);
+          num.value = String(nn);
+          c.confidence = nn;
+        }
+      });
+
+      card.querySelector('input[data-f="title"]').addEventListener('input', (ev)=> c.title = ev.target.value);
+      card.querySelector('input[data-f="goal"]').addEventListener('input', (ev)=> c.goal = ev.target.value);
+      card.querySelector('input[data-f="next_step"]').addEventListener('input', (ev)=> c.next_step = ev.target.value);
+
+      card.querySelector('textarea[data-f="options"]').addEventListener('input', (ev)=> c.options = ev.target.value);
+      card.querySelector('textarea[data-f="obstacles"]').addEventListener('input', (ev)=> c.obstacles = ev.target.value);
+      card.querySelector('textarea[data-f="if_then"]').addEventListener('input', (ev)=> c.if_then = ev.target.value);
+      card.querySelector('textarea[data-f="result_last_week"]').addEventListener('input', (ev)=> c.result_last_week = ev.target.value);
+
+      card.querySelector('[data-act="remove"]').addEventListener('click', ()=>{
+        currentDraft.cards.splice(idx, 1);
+        renderCards(); renderNotes();
+      });
+      card.querySelector('[data-act="toggle"]').addEventListener('click', ()=>{
+        c.details_open = !c.details_open;
+        renderCards();
+      });
+      card.querySelector('[data-act="newid"]').addEventListener('click', ()=>{
+        c.id = nextProblemId(currentPatient);
+        c.status = 'NEW';
+        renderCards(); renderNotes();
+      });
+      card.querySelector('[data-act="close"]').addEventListener('click', ()=>{
+        updateRegistryFromCard(c, true);
+        c.status = 'CLOSED';
+        renderCards(); renderMainHeader(); renderPreSession();
+        toast('Registry', `Closed ${c.id}.`);
+      });
+      card.querySelector('[data-act="reopen"]').addEventListener('click', ()=>{
+        const reason = prompt(`Reopen ${c.id} — reason (optional):`) || '';
+        updateRegistryReopen(c, reason.trim());
+        c.status = 'CONTINUE';
+        renderCards(); renderMainHeader(); renderPreSession();
+        toast('Registry', `Reopened ${c.id}.`);
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  function mapCategoryToLibraryKey(c){
+    const cat = (c.category || 'other');
+    const t = (c.title || '').toLowerCase();
+    if(/anx|anxiety|panic|worry|fear|φοβ|αγχ/.test(t)) return 'anxiety';
+    if(t.includes('mood') || /sad|depress|καταθλ|χαμηλ/.test(t)) return 'mood';
+    if(cat === 'sleep') return 'sleep';
+    if(cat === 'work') return 'work';
+    if(cat === 'social') return 'social';
+    if(cat === 'relationships') return 'relationships';
+    if(cat === 'finances') return 'finances';
+    if(cat === 'health') return 'health';
+    return 'other';
+  }
+
+  function renderNotes(){
+    const box = $('notesContainer');
+    box.innerHTML = '';
+    if(!currentDraft){
+      box.innerHTML = `<div class="mini muted">Start a session to see evidence notes for the current cards.</div>`;
+      return;
+    }
+    const cards = currentDraft.cards || [];
+    if(cards.length === 0){
+      box.innerHTML = `<div class="mini muted">Add 1–3 cards. Notes will appear per card + a unified plan.</div>`;
+      box.appendChild(renderUnifiedNotes([]));
+      return;
+    }
+    cards.forEach((c, idx)=> box.appendChild(renderNotesForCard(c, idx)));
+    box.appendChild(renderUnifiedNotes(cards));
+  }
+
+  function renderNotesForCard(c, idx){
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.style.background = 'rgba(0,0,0,.10)';
+    const primary = idx===0 ? 'PRIMARY' : `CARD ${idx+1}`;
+    const libKey = mapCategoryToLibraryKey(c);
+    const lib = EVIDENCE_LIBRARY[libKey] || EVIDENCE_LIBRARY.other;
+    const mods = lib.modules.map(m=>`
+      <div class="row" style="align-items:flex-start; gap:10px; margin:10px 0;">
+        <span class="badge">${escapeHtml(m.name)}</span>
+        <div class="grow"><div class="mini">${escapeHtml(m.note)}</div></div>
+      </div>
+    `).join('');
+
+    div.innerHTML = `
+      <div class="row" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div class="row" style="gap:10px;">
+          <span class="badge good">${primary}</span>
+          <span class="badge mono">${escapeHtml(c.id || '')}</span>
+          <span class="badge">${escapeHtml(c.category || 'other')}</span>
+        </div>
+        <span class="badge">Educational note</span>
+      </div>
+      <div class="hr"></div>
+      <div style="font-weight:900; font-size:13px;">${escapeHtml(lib.title)}</div>
+      <div class="mini muted" style="margin-top:4px;">Applies to: <span class="mono">${escapeHtml((c.title||'—').slice(0,90))}</span></div>
+      ${mods}
+      <div class="hr"></div>
+      <div class="mini muted">
+        Sources to consult (clinician): NICE / APA / WHO mhGAP / AASM (sleep). This tool does not diagnose or replace clinical judgment.
+      </div>
+    `;
+    return div;
+  }
+
+  function renderUnifiedNotes(cards){
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.style.background = 'rgba(0,0,0,.10)';
+    const u = EVIDENCE_LIBRARY.general;
+    const mods = u.modules.map(m=>`
+      <div class="row" style="align-items:flex-start; gap:10px; margin:10px 0;">
+        <span class="badge">${escapeHtml(m.name)}</span>
+        <div class="grow"><div class="mini">${escapeHtml(m.note)}</div></div>
+      </div>
+    `).join('');
+
+    const hasSleep = cards.some(c=>c.category==='sleep');
+    const hasAvoid = (currentDraft?.metrics?.avoidance ?? 0) >= 6 || cards.some(c=>(c.title||'').toLowerCase().includes('avoid'));
+    const hasRumi = (currentDraft?.metrics?.rumination ?? 0) >= 6;
+    const thread = [];
+    thread.push('Keep the plan small and measurable (weekly).');
+    if(hasAvoid) thread.push('Prioritize approach actions (reduce avoidance) with a graded plan.');
+    if(hasRumi) thread.push('Use time-boxed worry/rumination management + one action step.');
+    if(hasSleep) thread.push('Stabilize sleep routine if it is a consistent driver.');
+    const threadHtml = thread.map(x=>`<li>${escapeHtml(x)}</li>`).join('');
+
+    div.innerHTML = `
+      <div class="row" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div class="row" style="gap:10px;">
+          <span class="badge warn">UNIFIED PLAN</span>
+          <span class="badge">Common thread</span>
+        </div>
+        <span class="badge">Educational note</span>
+      </div>
+      <div class="hr"></div>
+      <div style="font-weight:900; font-size:13px;">${escapeHtml(u.title)}</div>
+      ${mods}
+      <div class="hr"></div>
+      <div class="label">Suggested common thread for this session</div>
+      <ul class="mini" style="margin:8px 0 0 18px; color:var(--text);">
+        ${threadHtml}
+      </ul>
+      <div class="hr"></div>
+      <div class="mini muted">Non-diagnostic. Use clinical judgment & patient preferences.</div>
+    `;
+    return div;
+  }
+
+  function renderExport(){
+    $('btnExportPatient').disabled = !currentPatient;
+    $('btnImportPatient').disabled = !currentPatient;
+    $('btnBuildCSV').disabled = !currentPatient;
+    $('btnRunOPS').disabled = true;
+    $('btnDownloadCSV').disabled = true;
+    $('opsBadge').classList.add('hidden');
+    $('opsResult').innerHTML = '';
+    $('csvPreview').value = '';
+    if(!currentPatient) return;
+
+    const hist = $('historyList');
+    const entries = currentPatient.entries || [];
+    if(entries.length === 0){
+      hist.textContent = 'No sessions yet.';
+    } else {
+      hist.innerHTML = entries.slice(-10).map((e)=>{
+        const safe = e.safety_flag === 'YES' ? ' ⚠️' : '';
+        return `<div>• ${escapeHtml(e.week_end || e.created_at.slice(0,10))} — ${escapeHtml((e.mode||'').toUpperCase())}${safe} — cards: ${(e.cards||[]).length}</div>`;
+      }).join('');
+    }
+  }
+
+  $('btnExportPatient').addEventListener('click', ()=>{
+    if(!currentPatient) return;
+    const payload = { exported_at: nowISO(), patient: currentPatient };
+    downloadText(`patient_${currentPatient.id}_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    toast('Export', 'Patient JSON downloaded.');
+  });
+  $('btnImportPatient').addEventListener('click', ()=> $('importPatientFile').click());
+  $('importPatientFile').addEventListener('change', async (ev)=>{
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if(!f) return;
+    try{
+      const text = await f.text();
+      const obj = JSON.parse(text);
+      if(!obj || !obj.patient || !obj.patient.id) throw new Error('Invalid');
+      const idx = app.patients.findIndex(p=>p.id === obj.patient.id);
+      if(idx>=0) app.patients[idx] = obj.patient;
+      else app.patients.unshift(obj.patient);
+      app.selectedId = obj.patient.id;
+      saveAll(app);
+      renderPatients();
+      selectPatient(obj.patient.id);
+      toast('Import', 'Patient imported.');
+    }catch(e){
+      toast('Import failed', 'Invalid patient JSON.');
+    }
+  });
+
+  function numOrBlank(x){
+    const n = Number(x);
+    return Number.isFinite(n) ? String(n) : '';
+  }
+  function safeCSV(s){
+    const str = String(s || '');
+    if(!str) return '';
+    if(/[,"\n]/.test(str)) return '"' + str.replace(/"/g,'""') + '"';
+    return str;
+  }
+  function buildCSV(p){
+    const entries = p.entries || [];
+    const cols = ['t','week_end','anxiety','stress','avoidance','rumination','sleep_quality','activity','social','mood','commitment','open_problems'];
+    const rows = [];
+    for(let i=0;i<entries.length;i++){
+      const e = entries[i];
+      const openProblems = new Set();
+      (e.cards || []).forEach(c=>{ if(c && c.id && c.status !== 'CLOSED') openProblems.add(c.id); });
+      const row = cols.map(k=>{
+        if(k==='t') return i;
+        if(k==='week_end') return safeCSV(e.week_end || '');
+        if(k==='commitment') return numOrBlank(e.commitment);
+        if(k==='open_problems') return String(openProblems.size);
+        return numOrBlank(e.metrics?.[k]);
+      }).join(',');
+      rows.push(row);
+    }
+    return { csvText: [cols.join(','), ...rows].join('\n'), cols };
+  }
+
+  $('btnBuildCSV').addEventListener('click', ()=>{
+    if(!currentPatient) return;
+    csvCache = buildCSV(currentPatient);
+    $('csvPreview').value = csvCache.csvText;
+    $('btnDownloadCSV').disabled = false;
+    $('btnRunOPS').disabled = false;
+    toast('CSV', 'Built.');
+  });
+  $('btnDownloadCSV').addEventListener('click', ()=>{
+    if(!csvCache) return;
+    downloadText(`patient_${currentPatient.id}_weekly_metrics.csv`, csvCache.csvText, 'text/csv');
+    toast('CSV', 'Downloaded.');
+  });
+
+  $('btnRunOPS').addEventListener('click', async ()=>{
+    if(!csvCache){ toast('OPS', 'Build CSV first.'); return; }
+    const base = ($('opsBase').value || '').trim();
+    if(!base){ toast('OPS', 'Set OPS base URL first.'); return; }
+    const url = base.replace(/\/+$/,'') + '/api/ops/certify_upload';
+
+    $('opsBadge').classList.remove('hidden');
+    $('opsBadge').classList.remove('good','bad','warn');
+    $('opsBadge').textContent = 'RUNNING…';
+    $('opsResult').innerHTML = `<span class="mini muted">Uploading CSV to OPS…</span>`;
+
+    try{
+      const fd = new FormData();
+      const blob = new Blob([csvCache.csvText], {type:'text/csv'});
+      fd.append('file', blob, `patient_${currentPatient.id}_weekly_metrics.csv`);
+      const res = await fetch(url, { method:'POST', body: fd });
+      const text = await res.text();
+      let obj = null;
+      try{ obj = JSON.parse(text); }catch(e){}
+      if(!res.ok) throw new Error(obj?.detail || obj?.error || text || `HTTP ${res.status}`);
+
+      const verdict = (obj && (obj.verdict || obj.VERDICT || obj.result?.verdict)) || 'UNKNOWN';
+      const audit = (obj && (obj.audit_pack_url || obj.audit_pack || obj.audit || obj.result?.audit_pack_url)) || '';
+      const v = String(verdict).toUpperCase();
+      $('opsBadge').textContent = `VERDICT: ${v}`;
+      if(v.includes('PASS')) $('opsBadge').classList.add('good');
+      else if(v.includes('FAIL')) $('opsBadge').classList.add('bad');
+      else $('opsBadge').classList.add('warn');
+
+      $('opsResult').innerHTML = audit
+        ? `<div class="mini">Audit pack: <a href="${escapeAttr(audit)}" target="_blank" rel="noopener">open link</a></div>`
+        : `<div class="mini muted">No audit link returned.</div>`;
+      toast('OPS', `Done: ${v}`);
+    }catch(e){
+      $('opsBadge').textContent = 'OPS ERROR';
+      $('opsBadge').classList.add('bad');
+      $('opsResult').innerHTML = `<div class="mini" style="color:var(--bad);">${escapeHtml(String(e.message || e))}</div>`;
+      toast('OPS error', 'See details.');
+    }
+  });
+
+  $('btnSaveSession').addEventListener('click', ()=>{
+    if(!currentPatient){ toast('Error', 'Select patient.'); return; }
+    if(!currentDraft){ toast('Error', 'Start a session first.'); return; }
+    if(!currentDraft.week_end){ toast('Validation', 'Week end date is required.'); setTab('intake'); return; }
+
+    // Basic validation
+    if((currentDraft.cards || []).length > 3){
+      toast('Validation', 'Max 3 cards.');
+      return;
+    }
+
+    // Update registry based on cards (open/closed)
+    (currentDraft.cards || []).forEach(c=>{
+      if(!c || !c.id) return;
+      if(c.status === 'CLOSED') updateRegistryFromCard(c, true);
+      else updateRegistryFromCard(c, false);
+    });
+
+    // Save session entry
+    const entry = {
+      created_at: nowISO(),
+      mode: currentDraft.mode,
+      week_start: currentDraft.week_start,
+      week_end: currentDraft.week_end,
+      metrics: currentDraft.metrics,
+      safety_flag: currentDraft.safety_flag,
+      commitment: currentDraft.commitment,
+      today_focus: currentDraft.today_focus,
+      manual_note: currentDraft.manual_note,
+      cards: currentDraft.cards.map(c=>({
+        id: c.id,
+        status: c.status,
+        category: c.category,
+        title: c.title,
+        goal: c.goal,
+        next_step: c.next_step,
+        confidence: c.confidence
+      }))
+    };
+
+    currentPatient.entries = currentPatient.entries || [];
+    currentPatient.entries.push(entry);
+
+    // Persist patient back into global state
+    const idx = app.patients.findIndex(p=>p.id === currentPatient.id);
+    if(idx>=0) app.patients[idx] = currentPatient;
+    saveAll(app);
+
+    // Reset draft
+    currentDraft = null;
+    csvCache = null;
+
+    renderMainHeader();
+    renderPreSession();
+    renderIntake();
+    renderCards();
+    renderNotes();
+    renderExport();
+
+    toast('Saved', 'Session saved to patient history.');
+    setTab('pre');
+  });
+
+  // OPS base URL persistence
+  const opsBaseSaved = localStorage.getItem(OPS_KEY) || '';
+  $('opsBase').value = opsBaseSaved;
+  $('opsBase').addEventListener('input', ()=>{
+    localStorage.setItem(OPS_KEY, $('opsBase').value || '');
+  });
+
+  // Initial render
+  renderPatients();
+  if(app.selectedId) selectPatient(app.selectedId);
+})();
+</script>
+</body>
+</html>
