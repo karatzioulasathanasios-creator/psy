@@ -133,6 +133,28 @@
       border-color:rgba(122,162,255,.55);
       box-shadow:0 0 0 3px rgba(122,162,255,.12);
     }
+    
+    .chartWrap{position:relative; width:100%; border:1px solid var(--border); border-radius:16px; overflow:hidden; background:rgba(0,0,0,.12)}
+    canvas{display:block; width:100%; height:auto}
+    .tooltip{
+      position:absolute;
+      left:0; top:0;
+      transform:translate(10px,10px);
+      background:rgba(0,0,0,.82);
+      border:1px solid rgba(255,255,255,.14);
+      padding:8px 10px;
+      border-radius:12px;
+      font-size:12px;
+      line-height:1.35;
+      max-width:320px;
+      pointer-events:none;
+      white-space:pre-line;
+      backdrop-filter: blur(6px);
+    }
+    .pillBox{display:flex; gap:8px; flex-wrap:wrap; padding:10px; border:1px solid var(--border); border-radius:14px; background:rgba(0,0,0,.12)}
+    .chkPill{display:flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid rgba(255,255,255,.10); border-radius:999px; cursor:pointer; user-select:none}
+    .chkPill input{width:auto}
+
     .patientList{
       padding:10px 10px 12px 10px;
       overflow:auto;
@@ -287,6 +309,8 @@
           <button id="btnImportAll" class="btn small">Import</button>
         </div>
         <input id="importAllFile" class="hidden" type="file" accept="application/json" />
+        <input id="patientSearch" class="input" placeholder="Search patients (ID or name)..." style="margin-top:10px;" />
+
       </div>
 
       <div class="patientList" id="patientList"></div>
@@ -310,6 +334,7 @@
           <button id="btnStartGuided" class="btn primary small" disabled>Start (Guided)</button>
           <button id="btnStartManual" class="btn small" disabled>Start (Manual / Fresh)</button>
           <button id="btnSaveSession" class="btn good small" disabled>Save Session</button>
+          <button id="btnDeletePatient" class="btn danger small" disabled>Delete Patient</button>
         </div>
       </div>
 
@@ -318,6 +343,7 @@
         <div class="tab" data-tab="intake">Intake (10′)</div>
         <div class="tab" data-tab="cards">Problem Cards</div>
         <div class="tab" data-tab="notes">Evidence Notes</div>
+        <div class="tab" data-tab="progress">Progress</div>
         <div class="tab" data-tab="export">Export / OPS</div>
       </div>
 
@@ -482,7 +508,49 @@
           <div id="notesContainer" class="col" style="gap:10px;"></div>
         </div>
 
-        <div class="card hidden" id="tab-export">
+        
+        <div class="card hidden" id="tab-progress">
+          <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div>
+              <h3 style="margin:0 0 4px 0;">Progress (metrics over sessions)</h3>
+              <div class="mini">Plots selected metrics from all saved sessions for the current patient (0–10). Use this to quickly spot trends and regressions.</div>
+            </div>
+            <div class="row" style="gap:8px; flex-wrap:wrap;">
+              <button id="btnProgressExport" class="btn small" disabled>Export chart CSV</button>
+              <button id="btnProgressReset" class="btn small" disabled>Reset</button>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="grid2">
+            <div>
+              <div class="label">Select metrics to plot</div>
+              <div id="progressMetricBox" class="pillBox"></div>
+              <div class="mini muted">Tip: pick 1–3 metrics for readability.</div>
+            </div>
+            <div>
+              <div class="label">Sessions</div>
+              <div class="row" style="gap:8px;">
+                <select id="progressRange" class="input"></select>
+              </div>
+              <div class="mini muted">You can view all sessions or the last N.</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="chartWrap">
+            <canvas id="progressCanvas" width="1100" height="360"></canvas>
+            <div id="progressTip" class="tooltip hidden"></div>
+          </div>
+
+          <div class="mini muted" style="margin-top:10px;">
+            Note: This is a visualization only. It is not diagnostic.
+          </div>
+        </div>
+
+<div class="card hidden" id="tab-export">
           <h3>Export / OPS</h3>
           <div class="grid2">
             <div class="card" style="background:rgba(0,0,0,.10);">
@@ -658,90 +726,204 @@
 
   const PROBLEM_TEMPLATES = [
     { key:'', label:'Quick add template…' },
+
+    // Anxiety / worry
     {
       key:'weekly_anxiety',
-      label:'Weekly anxiety (worry/rumination)',
+      label:'Anxiety — worry/rumination (weekly plan)',
       category:'other',
       confidence:6,
-      title:'Weekly anxiety (worry) → rumination → fatigue',
-      goal:'Daily: 10′ worry time + 5′ “next action” (5 days/week)',
-      next_step:'Set a 10′ worry-time window today; write 1 next action after it.',
-      options:'1) Worry time (10′) + next action\n2) Postpone worry: “not now” cue\n3) 2-minute breathing reset\n4) Values-based action (5′)\n5) Reduce reassurance checking',
+      title:'Worry / rumination loop → fatigue / stuckness',
+      goal:'5 days/week: 10′ worry-time + 5′ “next action”',
+      next_step:'Schedule 10′ worry-time today; after it, write 1 concrete next action (≤5′).',
+      options:'1) Worry-time + “next action”\n2) Postpone worry (note → later)\n3) Brief relaxation (breathing / PMR)\n4) Values-based 5′ action\n5) Reduce reassurance checking',
       obstacles:'- Forgetting the window\n- “If I don’t worry, I’ll miss something”\n- Fatigue after work',
-      if_then:'- If worry spikes, then set a 2-minute timer + label thought\n- If I start checking, then postpone 15 minutes'
+      if_then:'- If worry spikes, then 2′ pause + label the thought + postpone\n- If I start checking, then stop after 1 check and write the next action'
     },
     {
-      key:'sleep_maintenance',
-      label:'Sleep: waking at night (CBT-I light)',
-      category:'sleep',
-      confidence:5,
-      title:'Wake 03:00 → arousal → hard to return to sleep',
-      goal:'5/7 nights: 20′ wind-down + no phone in bed',
-      next_step:'Tonight 23:30 — 20′ low light + 2′ “tomorrow list” + bed (no phone).',
-      options:'1) Wind-down routine\n2) No phone in bed\n3) If awake >20′: quiet activity out of bed\n4) Worry list earlier\n5) Morning light + consistent wake time',
-      obstacles:'- Reaching for phone\n- “I must sleep now” pressure\n- Coffee late',
-      if_then:'- If awake >20′, then get up quietly for a low-stim activity\n- If urge to check phone, then put it outside room'
-    },
-    {
-      key:'avoidance_procrastination',
-      label:'Work avoidance / procrastination (exposure-lite)',
-      category:'work',
-      confidence:6,
-      title:'Avoid emails/tasks → deadlines → anxiety',
-      goal:'3× this week: 20′ timer → 3 small tasks',
-      next_step:'Tue 18:00 — timer 20′ — start with 1 easy email.',
-      options:'1) 20′ timer starter\n2) “Smallest next step”\n3) Reduce perfectionism (draft first)\n4) Reward after\n5) Schedule block with calendar',
-      obstacles:'- Fear it becomes “big”\n- Perfectionism\n- Low energy',
-      if_then:'- If fear spikes, then do 2′ “ugly first draft”\n- If tired, then do only 1 tiny step'
-    },
-    {
-      key:'panic_somatic',
-      label:'Panic-like symptoms (grounding)',
+      key:'panic_interoceptive',
+      label:'Anxiety — panic sensations (skills plan)',
       category:'health',
       confidence:5,
-      title:'Body sensations → catastrophic thoughts → panic spike',
-      goal:'Use grounding plan 3× when symptoms rise',
-      next_step:'Write a 3-step grounding script; practice once today.',
-      options:'1) 5-4-3-2-1 grounding\n2) Slow exhale (longer out)\n3) Label thought as thought\n4) Reduce avoidance/reassurance\n5) Values-based micro-action',
-      obstacles:'- Fear of sensations\n- Safety behaviors\n- Avoiding places',
-      if_then:'- If I notice racing heart, then slow exhale for 60s\n- If catastrophic thought, then label it and refocus'
-    },
-    {
-      key:'low_mood_ba',
-      label:'Low mood (behavioral activation)',
-      category:'other',
-      confidence:5,
-      title:'Low mood → withdrawal → less activity',
-      goal:'Schedule 3 small activities (pleasure or mastery) this week',
-      next_step:'Pick 1 “2-minute” activity and schedule it today.',
-      options:'1) Activity scheduling\n2) Small mastery task\n3) Social micro-connection\n4) Reduce all-or-nothing\n5) Track mood after activity',
-      obstacles:'- “No energy”\n- Negative predictions\n- Isolation',
-      if_then:'- If I feel stuck, then do 2 minutes only\n- If I skip, then restart next slot'
+      title:'Panic-like sensations → fear of symptoms → avoidance',
+      goal:'Build tolerance to sensations + reduce safety behaviors',
+      next_step:'Pick 1 “safe” body-sensation exercise (with clinician) and log outcome.',
+      options:'1) Psychoeducation: sensations ≠ danger\n2) Track triggers + safety behaviors\n3) Gradual exposure plan (clinician-led)\n4) Breathing skill (slow exhale)\n5) Reduce avoidance one step/week',
+      obstacles:'- Fear of triggering symptoms\n- Avoiding practice\n- Reliance on safety objects/people',
+      if_then:'- If I feel a spike, then “name it” + slow exhale 6 breaths\n- If I avoid, then do the smallest step (1 minute) and stop'
     },
     {
       key:'social_anxiety',
-      label:'Social anxiety (graded exposure)',
+      label:'Anxiety — social / performance (weekly plan)',
       category:'social',
-      confidence:5,
-      title:'Social situations → fear of judgment → avoidance',
-      goal:'Do 2 graded social exposures this week',
-      next_step:'Choose exposure level 1–2 and schedule it.',
-      options:'1) Exposure ladder\n2) Drop safety behaviors\n3) Focus outward\n4) Limit post-event review\n5) Self-compassion cue',
-      obstacles:'- Avoidance\n- Over-preparing\n- Rumination afterwards',
-      if_then:'- If I want to avoid, then do the smallest exposure step\n- If rumination starts, then set a 10′ limit'
+      confidence:6,
+      title:'Social/performance fear → self-focus → avoidance',
+      goal:'1 planned exposure/week + reduce safety behaviors',
+      next_step:'Choose 1 specific social task (small) + decide what safety behavior to drop.',
+      options:'1) Identify predictions + test them\n2) Shift attention outward\n3) Drop 1 safety behavior\n4) Post-event rumination: 10′ cap\n5) Skills practice (assertiveness)',
+      obstacles:'- “I will embarrass myself”\n- Over-preparing\n- Post-event replay',
+      if_then:'- If I start replaying, then limit to 10′ and write 1 balanced takeaway\n- If I over-prepare, then do 70% preparation and stop'
     },
     {
-      key:'relationship_conflict',
-      label:'Relationship conflict (communication)',
-      category:'relationships',
+      key:'ocd_erp',
+      label:'Anxiety — compulsions / checking (ERP)',
+      category:'other',
       confidence:6,
-      title:'Conflict → escalation → withdrawal/anger',
-      goal:'1 structured conversation using “I-statements”',
-      next_step:'Draft 3 “I feel…when…because…I need…” lines.',
-      options:'1) I-statements\n2) Time-out rules\n3) Active listening\n4) Repair attempt\n5) One concrete request',
-      obstacles:'- Defensiveness\n- Timing\n- Old resentments',
-      if_then:'- If voices rise, then take 10′ break\n- If blame starts, then return to “I feel/need”'
-    }
+      title:'Obsessions → anxiety → compulsions/checking',
+      goal:'Reduce rituals; build uncertainty tolerance (ERP plan with clinician)',
+      next_step:'List 3 rituals + pick the easiest to delay by 2 minutes.',
+      options:'1) Map trigger → obsession → ritual\n2) Exposure + response prevention (clinician-led)\n3) Delay/shorten rituals\n4) “Maybe” statements (uncertainty)\n5) Track progress weekly',
+      obstacles:'- “I must be 100% sure”\n- Family accommodation\n- Strong urges',
+      if_then:'- If urge hits, then delay 2′ + breathe + rate urge\n- If I do a ritual, then do it once (no repeats)'
+    },
+
+    // Mood / depression
+    {
+      key:'behavioral_activation',
+      label:'Mood — low mood / anhedonia (BA)',
+      category:'other',
+      confidence:7,
+      title:'Low mood → withdrawal → less reward → lower mood',
+      goal:'Daily: 1 small routine + 1 rewarding activity (10–20′)',
+      next_step:'Schedule one “small win” activity for tomorrow (≤15′) and commit to time.',
+      options:'1) Activity schedule (tiny steps)\n2) Mood-activity tracking\n3) Remove “all or nothing” rules\n4) Social micro-contact\n5) Reward after completion',
+      obstacles:'- Low energy\n- “What’s the point?”\n- Overly big goals',
+      if_then:'- If energy is low, then do the 2-minute version\n- If I skip, then restart the next day (no penalty)'
+    },
+    {
+      key:'self_criticism',
+      label:'Mood — self-criticism / shame (CBT)',
+      category:'other',
+      confidence:6,
+      title:'Harsh self-talk → shame → avoidance',
+      goal:'Daily: 1 “compassionate reframe” + 1 action step',
+      next_step:'Write 1 common self-critical thought and a balanced alternative.',
+      options:'1) Identify thought distortions\n2) Evidence for/against\n3) Compassionate letter (5′)\n4) Values-based action\n5) Reduce comparison triggers',
+      obstacles:'- Automatic negative thoughts\n- Perfectionism\n- “Compassion = weakness” belief',
+      if_then:'- If self-attack starts, then “pause + name + reframe”\n- If stuck, then ask: “What would I say to a friend?”'
+    },
+
+    // Sleep
+    {
+      key:'cbti_sleep',
+      label:'Sleep — insomnia support (CBT‑I style)',
+      category:'sleep',
+      confidence:6,
+      title:'Poor sleep → daytime fatigue → worse coping',
+      goal:'Stabilize schedule + reduce time awake-in-bed',
+      next_step:'Pick a consistent wake time for 7 days; log sleep/wake times.',
+      options:'1) Stimulus control (bed=Sleep)\n2) Consistent wake time\n3) Wind-down routine\n4) Reduce late caffeine/alcohol\n5) Worry dump before bed',
+      obstacles:'- Napping\n- Phone in bed\n- Irregular schedule',
+      if_then:'- If awake >20′, then get out of bed and do quiet activity\n- If I nap, then cap at 20′ before 15:00'
+    },
+
+    // Stress / burnout
+    {
+      key:'stress_pmplus',
+      label:'Stress — problem management (PM+ style)',
+      category:'work',
+      confidence:6,
+      title:'High stress load → overwhelm → avoidance',
+      goal:'Weekly: 1 prioritized problem + plan + review',
+      next_step:'Define 1 concrete problem (who/what/when), then list 3 options.',
+      options:'1) Prioritize solvable vs not\n2) Break into steps\n3) Choose 1 action + backup\n4) Practice calm breathing\n5) Strengthen social support',
+      obstacles:'- Too many problems at once\n- Overthinking\n- Low support',
+      if_then:'- If overwhelmed, then choose 1 problem only\n- If stuck, then ask “what is the smallest next step?”'
+    },
+    {
+      key:'burnout_pacing',
+      label:'Stress — fatigue / burnout (pacing)',
+      category:'work',
+      confidence:5,
+      title:'Fatigue/burnout → crashes → inconsistent routine',
+      goal:'Daily: pacing + 1 recovery block',
+      next_step:'Plan one 15′ recovery block and one “must-do” task (≤20′).',
+      options:'1) Pacing (work/rest ratio)\n2) Reduce nonessential load\n3) Sleep hygiene basics\n4) Movement (10′)\n5) Boundaries (1 “no”/week)',
+      obstacles:'- Guilt about rest\n- Overcommitting\n- Unclear priorities',
+      if_then:'- If I push too hard, then schedule a recovery block immediately\n- If I feel guilt, then reframe as “recharge to function”'
+    },
+
+    // Anger / conflict
+    {
+      key:'anger_regulation',
+      label:'Emotion — anger spikes (DBT skills)',
+      category:'relationships',
+      confidence:5,
+      title:'Anger spike → impulsive reaction → conflict',
+      goal:'Use 1 de-escalation skill per incident + repair',
+      next_step:'Pick one early warning sign + one “pause” action (time-out).',
+      options:'1) STOP skill (pause)\n2) Temperature/pace breathing (calm body)\n3) Opposite action (gentle)\n4) Repair script\n5) Trigger log',
+      obstacles:'- “I’m right so I must react”\n- Fast escalation\n- Shame after',
+      if_then:'- If I feel heat/urge, then take 2′ time-out + slow exhale\n- If I reacted, then repair within 24h'
+    },
+    {
+      key:'interpersonal_effectiveness',
+      label:'Relationships — boundary / assertiveness (skills)',
+      category:'relationships',
+      confidence:5,
+      title:'People-pleasing or conflict avoidance → resentment',
+      goal:'1 assertive conversation/week (small)',
+      next_step:'Write the 1-sentence boundary + when you will say it.',
+      options:'1) Describe–Express–Assert–Reinforce (DEAR)\n2) Use “I” statements\n3) Validate then request\n4) Practice in session\n5) Anticipate pushback',
+      obstacles:'- Fear of rejection\n- Guilt\n- Poor timing',
+      if_then:'- If I freeze, then read the prepared sentence\n- If conflict rises, then pause and reschedule'
+    },
+
+    // Trauma (caution)
+    {
+      key:'trauma_referral',
+      label:'Trauma — consider trauma-focused care (note)',
+      category:'other',
+      confidence:4,
+      title:'Trauma symptoms → avoidance/flashbacks/hyperarousal',
+      goal:'Stabilization + referral for evidence-based trauma therapy if appropriate',
+      next_step:'Screen safety, stabilize, and discuss trauma-focused options / referral.',
+      options:'1) Grounding skills\n2) Sleep/routine stabilization\n3) Identify triggers + coping\n4) Referral to trauma-focused therapy (CPT/PE/EMDR)\n5) Safety planning if needed',
+      obstacles:'- High distress when discussing trauma\n- Dissociation\n- Avoidance',
+      if_then:'- If high distress, then return to grounding + present focus\n- If safety risk, then follow local safety protocol'
+    },
+
+    // Procrastination / avoidance
+    {
+      key:'avoidance_procrastination',
+      label:'Avoidance — procrastination (work)',
+      category:'work',
+      confidence:6,
+      title:'Avoidance → short-term relief → long-term stress',
+      goal:'3×/week: 20′ focused block + tiny first step',
+      next_step:'Schedule one 20′ block; start with a 2-minute “starter action”.',
+      options:'1) 2-minute start\n2) 20′ timer\n3) Break task into steps\n4) Reduce distractions\n5) Reward after completion',
+      obstacles:'- Fear of failure\n- Fatigue\n- Distractions',
+      if_then:'- If I delay, then do the 2-minute starter\n- If I get distracted, then note it and return'
+    },
+
+    // Substance use (brief)
+    {
+      key:'mi_readiness',
+      label:'Behavior — motivation/readiness (MI)',
+      category:'health',
+      confidence:5,
+      title:'Ambivalence → stuck cycle',
+      goal:'Clarify values + choose one small change',
+      next_step:'Use readiness rulers (0–10): importance & confidence; pick 1 “+1 point” step.',
+      options:'1) OARS (open questions, affirm, reflect, summarize)\n2) Readiness rulers (importance/confidence)\n3) Pros/cons (decisional balance)\n4) Identify triggers\n5) Small change plan',
+      obstacles:'- Low confidence\n- “All-or-nothing” thinking\n- High-risk environments',
+      if_then:'- If urge appears, then delay 10′ + change environment\n- If relapse, then analyze trigger and restart (learning)'
+    },
+
+    // Grief / adjustment
+    {
+      key:'grief_adjustment',
+      label:'Adjustment — grief/loss (support plan)',
+      category:'other',
+      confidence:4,
+      title:'Loss/stressor → waves of sadness → disrupted routine',
+      goal:'Stabilize routine + allow grief + support',
+      next_step:'Identify 1 support contact + one daily routine anchor.',
+      options:'1) Normalize waves of grief\n2) Routine anchors (sleep/meal/walk)\n3) Meaningful ritual\n4) Social support\n5) Limit avoidance gradually',
+      obstacles:'- Isolation\n- Sleep disruption\n- Guilt',
+      if_then:'- If overwhelmed, then 5′ grounding + contact support\n- If isolating, then send one message (low effort)'
+    },
   ];
 
 
@@ -765,10 +947,11 @@
     document.querySelectorAll('.tab').forEach(t=>{
       t.classList.toggle('active', t.dataset.tab === name);
     });
-    const map = { pre:'tab-pre', intake:'tab-intake', cards:'tab-cards', notes:'tab-notes', export:'tab-export' };
+    const map = { pre:'tab-pre', intake:'tab-intake', cards:'tab-cards', notes:'tab-notes', progress:'tab-progress', export:'tab-export' };
     Object.entries(map).forEach(([k, id])=>{
       $(id).classList.toggle('hidden', k !== name);
     });
+    if(name === 'progress') renderProgress();
   }
   document.querySelectorAll('.tab').forEach(t=>{
     t.addEventListener('click', ()=> setTab(t.dataset.tab));
@@ -793,7 +976,17 @@
       list.innerHTML = `<div class="mini muted">No patients yet. Click <b>Add</b>.</div>`;
       return;
     }
-    app.patients.forEach(p=>{
+    const q = String(app.patientFilter || '').trim().toLowerCase();
+    const arr = q ? app.patients.filter(p=>{
+      const id = String(p.id || '').toLowerCase();
+      const nm = String(p.name || '').toLowerCase();
+      return id.includes(q) || nm.includes(q);
+    }) : app.patients;
+    if(arr.length === 0){
+      list.innerHTML = `<div class="mini muted">No matches for <b>${escapeHtml(q)}</b>.</div>`;
+      return;
+    }
+    arr.forEach(p=>{
       const div = document.createElement('div');
       div.className = 'patientItem' + (app.selectedId === p.id ? ' active' : '');
       const n = (p.name && p.name.trim()) ? p.name.trim() : '(no name)';
@@ -837,6 +1030,7 @@
     $('btnStartGuided').disabled = !enabled;
     $('btnStartManual').disabled = !enabled;
     $('btnSaveSession').disabled = !enabled;
+    $('btnDeletePatient').disabled = !enabled;
   }
 
   function renderMainHeader(){
@@ -911,6 +1105,63 @@
       toast('Import failed', 'Invalid JSON or format.');
     }
   });
+
+  // Patient search (non-persistent)
+  app.patientFilter = app.patientFilter || '';
+  const _ps = $('patientSearch');
+  if(_ps){
+    _ps.addEventListener('input', ()=>{
+      app.patientFilter = _ps.value || '';
+      renderPatients();
+    });
+    _ps.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape'){
+        _ps.value = '';
+        app.patientFilter = '';
+        renderPatients();
+      }
+    });
+  }
+
+  // Delete patient (local-only)
+  $('btnDeletePatient').addEventListener('click', ()=>{
+    if(!currentPatient) return;
+    const pid = currentPatient.id;
+    const ans = prompt(`Type DELETE to remove patient ${pid}. This cannot be undone.`) || '';
+    if(ans.trim() !== 'DELETE'){
+      toast('Delete', 'Cancelled.');
+      return;
+    }
+    const idx = app.patients.findIndex(p=>p.id === pid);
+    if(idx >= 0) app.patients.splice(idx, 1);
+    currentPatient = null;
+    currentDraft = null;
+    csvCache = null;
+
+    app.selectedId = app.patients.length ? app.patients[Math.max(0, idx-1)].id : null;
+    saveAll(app);
+    if(_ps){ _ps.value=''; }
+    app.patientFilter = '';
+    renderPatients();
+    if(app.selectedId){
+      selectPatient(app.selectedId);
+    }else{
+      // No patients left
+      renderMainHeader();
+      renderPreSession();
+      renderIntake();
+      renderCards();
+      renderNotes();
+      renderExport();
+      $('btnStartGuided').disabled = true;
+      $('btnStartManual').disabled = true;
+      $('btnSaveSession').disabled = true;
+      $('btnDeletePatient').disabled = true;
+    }
+    toast('Delete', `Patient ${pid} deleted.`);
+  });
+
+
 
   function lastEntry(p){
     const arr = (p.entries || []);
@@ -1740,6 +1991,292 @@
     }
   });
 
+  
+  // -------------------------
+  // Progress (metrics chart)
+  // -------------------------
+  let progressSelected = new Set(METRICS.map(m=>m.k));
+  let progressRange = 'all';
+  let _progressBound = false;
+  let _progressModel = null;
+
+  function getProgressSeries(){
+    if(!currentPatient) return [];
+    const arr = (currentPatient.entries || []).slice();
+    // stable sort by created_at if present
+    arr.sort((a,b)=>{
+      const ta = Date.parse(a.created_at || '') || 0;
+      const tb = Date.parse(b.created_at || '') || 0;
+      return ta - tb;
+    });
+    return arr;
+  }
+
+  function buildProgressRangeOptions(n){
+    const opts = [{v:'all', label:`All sessions (${n})`}];
+    const picks = [3,5,8,12,20];
+    picks.forEach(k=>{
+      if(n > k) opts.push({v:`last_${k}`, label:`Last ${k} sessions`});
+    });
+    return opts;
+  }
+
+  function applyRange(entries){
+    if(progressRange === 'all') return entries;
+    const m = /^last_(\d+)$/.exec(progressRange);
+    if(!m) return entries;
+    const k = Math.max(1, Number(m[1])|0);
+    return entries.slice(Math.max(0, entries.length - k));
+  }
+
+  function renderProgress(){
+    const btnExp = $('btnProgressExport');
+    const btnRes = $('btnProgressReset');
+    const box = $('progressMetricBox');
+    const sel = $('progressRange');
+    const canvas = $('progressCanvas');
+    const tip = $('progressTip');
+
+    const has = !!currentPatient;
+    btnExp.disabled = !has;
+    btnRes.disabled = !has;
+
+    if(!has){
+      if(box) box.innerHTML = '<div class="mini muted">Select a patient first.</div>';
+      if(sel) sel.innerHTML = '';
+      if(canvas){
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+      }
+      return;
+    }
+
+    const entriesAll = getProgressSeries();
+    if(entriesAll.length === 0){
+      box.innerHTML = '<div class="mini muted">No saved sessions yet. Save at least one session to see progress.</div>';
+      sel.innerHTML = '';
+      btnExp.disabled = true;
+      btnRes.disabled = false;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawProgressChart(canvas, tip, [], Array.from(progressSelected));
+      return;
+    }
+    const opts = buildProgressRangeOptions(entriesAll.length);
+    sel.innerHTML = '';
+    opts.forEach(o=> sel.appendChild(new Option(o.label, o.v)));
+    sel.value = opts.some(o=>o.v===progressRange) ? progressRange : 'all';
+    progressRange = sel.value;
+
+    // Metric pills
+    box.innerHTML = '';
+    METRICS.forEach(m=>{
+      const id = `pm_${m.k}`;
+      const wrap = document.createElement('label');
+      wrap.className = 'chkPill';
+      wrap.innerHTML = `<input type="checkbox" id="${id}" ${progressSelected.has(m.k)?'checked':''} /> <span>${escapeHtml(m.label)}</span>`;
+      wrap.querySelector('input').addEventListener('change', ()=>{
+        if(wrap.querySelector('input').checked) progressSelected.add(m.k);
+        else progressSelected.delete(m.k);
+        drawProgress();
+      });
+      box.appendChild(wrap);
+    });
+
+    sel.onchange = ()=>{
+      progressRange = sel.value || 'all';
+      drawProgress();
+    };
+
+    btnRes.onclick = ()=>{
+      progressSelected = new Set(METRICS.map(m=>m.k));
+      progressRange = 'all';
+      renderProgress();
+    };
+
+    btnExp.onclick = ()=>{
+      const entries = applyRange(getProgressSeries());
+      const keys = Array.from(progressSelected);
+      const header = ['created_at','week_start','week_end'].concat(keys);
+      const rows = entries.map(e=>{
+        const base = [e.created_at||'', e.week_start||'', e.week_end||''];
+        keys.forEach(k=>{
+          const v = Number(e.metrics?.[k]);
+          base.push(Number.isFinite(v) ? String(v) : '');
+        });
+        return base;
+      });
+      const csv = safeCSV([header].concat(rows));
+      downloadText(`syntelia_psych_progress_${currentPatient.id}_${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv');
+      toast('Export', 'Progress CSV downloaded.');
+    };
+
+    function drawProgress(){
+      const entries = applyRange(getProgressSeries());
+      const keys = Array.from(progressSelected);
+      drawProgressChart(canvas, tip, entries, keys);
+    }
+
+    drawProgress();
+  }
+
+  function drawProgressChart(canvas, tipEl, entries, keys){
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    // Frame
+    const padL=58, padR=18, padT=18, padB=42;
+    const x0=padL, y0=padT, x1=W-padR, y1=H-padB;
+    const plotW=x1-x0, plotH=y1-y0;
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(x0,y0,plotW,plotH);
+
+    // Axes/grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.rect(x0,y0,plotW,plotH);
+    ctx.stroke();
+
+    // Y ticks 0..10
+    ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    for(let v=0; v<=10; v+=2){
+      const yy = y0 + plotH*(1 - v/10);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.beginPath(); ctx.moveTo(x0,yy); ctx.lineTo(x1,yy); ctx.stroke();
+      ctx.fillText(String(v), 18, yy+4);
+    }
+
+    // No data
+    if(!entries || entries.length === 0 || !keys || keys.length === 0){
+      ctx.fillStyle='rgba(255,255,255,0.72)';
+      ctx.fillText(entries.length===0 ? 'No sessions yet.' : 'Select at least one metric.', x0+10, y0+20);
+      return;
+    }
+
+    // X labels: show up to 6 labels
+    const n = entries.length;
+    const maxLabels = 6;
+    const step = Math.max(1, Math.ceil(n / maxLabels));
+    ctx.fillStyle='rgba(255,255,255,0.55)';
+    for(let i=0;i<n;i+=step){
+      const xx = x0 + plotW*(n===1?0.5:i/(n-1));
+      ctx.strokeStyle='rgba(255,255,255,0.06)';
+      ctx.beginPath(); ctx.moveTo(xx,y0); ctx.lineTo(xx,y1); ctx.stroke();
+      const label = (entries[i].week_start || '').slice(5) || (entries[i].created_at||'').slice(0,10);
+      ctx.save();
+      ctx.translate(xx, y1+18);
+      ctx.rotate(-Math.PI/6);
+      ctx.fillText(label, -22, 0);
+      ctx.restore();
+    }
+
+    // Colors
+    const palette = ['#7aa2ff','#48d17f','#ffcc66','#ff5c7a','#8bd5ca','#bb9af7','#f7768e','#2ac3de'];
+    const seriesPoints = []; // for tooltip
+
+    keys.forEach((k, si)=>{
+      const color = palette[si % palette.length];
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const pts = [];
+      for(let i=0;i<n;i++){
+        const e = entries[i];
+        const v = Number(e.metrics?.[k]);
+        const vv = Number.isFinite(v) ? Math.max(0, Math.min(10, v)) : NaN;
+        const xx = x0 + plotW*(n===1?0.5:i/(n-1));
+        const yy = Number.isFinite(vv) ? (y0 + plotH*(1 - vv/10)) : NaN;
+        pts.push({i, xx, yy, v});
+        if(!Number.isFinite(yy)) continue;
+        if(pts.filter(p=>Number.isFinite(p.yy)).length === 1){
+          ctx.moveTo(xx,yy);
+        }else{
+          ctx.lineTo(xx,yy);
+        }
+      }
+      ctx.stroke();
+
+      // Points
+      ctx.fillStyle = color;
+      pts.forEach(p=>{
+        if(!Number.isFinite(p.yy)) return;
+        ctx.beginPath(); ctx.arc(p.xx,p.yy,3,0,Math.PI*2); ctx.fill();
+      });
+
+      seriesPoints.push({key:k, label: (METRICS.find(m=>m.k===k)?.label||k), color, pts});
+    });
+
+    // Legend
+    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    let lx = x0+10, ly = y0+10;
+    seriesPoints.forEach(s=>{
+      ctx.fillStyle = s.color;
+      ctx.fillRect(lx, ly-9, 12, 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.78)';
+      ctx.fillText(s.label, lx+18, ly-2);
+      ly += 16;
+    });
+
+        // Save model for tooltip / hover
+    _progressModel = { entries, seriesPoints };
+
+    // Tooltip binding
+    if(!_progressBound){
+      _progressBound = true;
+      canvas.addEventListener('mousemove', (ev)=>{
+        const model = _progressModel;
+        if(!model) return;
+        const entries = model.entries || [];
+        const seriesPoints = model.seriesPoints || [];
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = (ev.clientX - rect.left) * (canvas.width / rect.width);
+        const my = (ev.clientY - rect.top) * (canvas.height / rect.height);
+
+        // nearest point across all series
+        let best = {d: 1e9};
+        seriesPoints.forEach(s=>{
+          (s.pts || []).forEach(p=>{
+            if(!Number.isFinite(p.yy)) return;
+            const dx = p.xx - mx, dy = p.yy - my;
+            const d = dx*dx + dy*dy;
+            if(d < best.d) best = {d, s, p};
+          });
+        });
+        if(best.d < 12*12){
+          const e = entries[best.p.i] || {};
+          const lines = [];
+          const pid = currentPatient ? String(currentPatient.id||'') : '';
+          const nm = currentPatient ? (currentPatient.name||'(no name)') : '';
+          lines.push(`${pid} — ${nm}`);
+          if(e.week_start || e.week_end) lines.push(`Week: ${e.week_start||'-'} → ${e.week_end||'-'}`);
+          if(e.created_at) lines.push(`Saved: ${String(e.created_at).replace('T',' ').slice(0,16)}`);
+          lines.push('');
+          seriesPoints.forEach(s=>{
+            const pv = (s.pts || []).find(x=>x.i === best.p.i);
+            const vv = Number(pv?.v);
+            lines.push(`${s.label}: ${Number.isFinite(vv) ? vv : '-'}`);
+          });
+          tipEl.textContent = lines.join('\n');
+          tipEl.classList.remove('hidden');
+          tipEl.style.transform = `translate(${Math.min(mx+12, canvas.width-260)}px, ${Math.min(my+12, canvas.height-140)}px)`;
+        }else{
+          tipEl.classList.add('hidden');
+        }
+      });
+      canvas.addEventListener('mouseleave', ()=>{
+        if(tipEl) tipEl.classList.add('hidden');
+      });
+    }
+  }
+
+
   function numOrBlank(x){
     const n = Number(x);
     return Number.isFinite(n) ? String(n) : '';
@@ -1847,6 +2384,7 @@
     renderCards();
     renderNotes();
     renderExport();
+    renderProgress();
 
     toast('Saved', 'Session saved to patient history.');
     setTab('pre');
